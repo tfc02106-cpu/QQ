@@ -154,7 +154,7 @@
   <div class="badge">⚡ Smart Precision Measurement Lab</div>
   <h1>智慧精密量測實驗室學習世界</h1>
   <p class="subtitle">先選一個你想學的主題，再挑裡面的互動網頁動手做。也可以直接用下面的搜尋列找關鍵字。</p>
-  <div class="toolbar"><input id="q" type="search" placeholder="搜尋，例如：影像、AOI、校正、機器人、量測、回歸..." /></div>
+  <div class="toolbar"><input id="q" type="search" placeholder="搜尋，例如：影像、AOI、校正、機器人、量測、流體..." /></div>
 </header>
 
 <main>
@@ -186,12 +186,14 @@ const TOPICS = [
   { id:'vision', icon:'🖼️', name:'影像處理與機器視覺', desc:'影像基礎運算、幾何校正與視覺實驗', c1:'#2563eb', c2:'#06b6d4' },
   { id:'ai', icon:'🤖', name:'AI 檢測與 AOI', desc:'自動光學檢測、辨識模型與訓練資料生成', c1:'#7c3aed', c2:'#2563eb' },
   { id:'metrology', icon:'📏', name:'精密量測與校正', desc:'量測不確定度、角度誤差與非破壞檢測', c1:'#0891b2', c2:'#22c55e' },
+  { id:'fluid', icon:'🌊', name:'流體力學', desc:'從變化球連結旋轉、流場、受力公式與球路', c1:'#0284c7', c2:'#14b8a6' },
   { id:'robot', icon:'🦾', name:'機器人與智慧自動化', desc:'機械手臂模擬、控制器調參與工業通訊', c1:'#f97316', c2:'#ef4444' },
   { id:'sensor', icon:'📶', name:'感測與訊號量測', desc:'手機感測器應用與現場量測實務', c1:'#eab308', c2:'#f97316' },
   { id:'data', icon:'📊', name:'資料分析與教學資源', desc:'迴歸預測、維修決策與課堂輔助素材', c1:'#14b8a6', c2:'#2563eb' }
 ];
 
 const COURSES = [
+  ['fluid','QQ/fluid-mechanics/','⚾','變化球流體力學互動實驗室','調整旋轉方向與公式係數，即時觀察代入值、受力、球路，以及同步顯示的水平與垂直氣流剖面。','公式互動','2026-09-24'],
   ['game','game1','🎮','迷宮大挑戰（60 秒限時）','隨機抽一張迷宮，用方向鍵或滑鼠在 60 秒內走到終點，順便撿三顆星星。','限時闖關','2026-09-19'],
   ['vision','ImaqWeek3','📘','工業影像基礎互動實作','RGB 通道分解、JPEG 品質比較、灰階直方圖與幾何變換的整合練習。','課程單元','2026-09-18'],
   ['vision','gamma','🌗','Gamma 與點運算實驗室','亮度校正、Gamma 曲線調整與直方圖變化的視覺化比較。','影像校正','2026-03-19'],
