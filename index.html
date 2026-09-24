@@ -146,6 +146,22 @@
     .topic{ min-height:auto; }
     .card{ min-height:auto; }
   }
+
+  .latest{ margin:0 0 30px; }
+  .latest-head{ display:flex; align-items:center; gap:10px; margin:0 0 14px; }
+  .latest-head h2{ margin:0; font-size:23px; color:#e5eefc; }
+  .latest-head span{ color:var(--muted); font-size:14px; }
+  .latest-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+  .latest-card{ display:flex; flex-direction:column; gap:9px; padding:20px 22px; border:1px solid rgba(125,211,252,.28); border-radius:18px; background:linear-gradient(135deg,rgba(14,116,144,.16),rgba(15,23,42,.82)); text-decoration:none; color:#e5eefc; transition:border-color .18s ease,background .18s ease; }
+  .latest-card:hover{ border-color:var(--sky); background:rgba(14,116,144,.24); }
+  .latest-card:focus-visible{ outline:3px solid var(--sky); outline-offset:4px; }
+  .latest-meta{ display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; }
+  .latest-date{ display:inline-block; font-size:14px; font-weight:800; color:#bae6fd; background:rgba(56,189,248,.12); border-radius:7px; padding:4px 10px; font-variant-numeric:tabular-nums; }
+  .latest-topic{ color:var(--muted); font-size:13px; }
+  .latest-card h3{ margin:0; font-size:18px; line-height:1.5; }
+  .latest-card p{ margin:0; color:var(--muted); font-size:14px; line-height:1.65; flex:1; }
+  .latest-enter{ color:var(--sky); font-size:14px; font-weight:800; align-self:flex-end; }
+  @media(max-width:640px){ .latest-grid{ grid-template-columns:1fr; } .latest-card{ padding:17px 18px; } }
 </style>
 </head>
 <body>
@@ -159,6 +175,10 @@
 
 <main>
   <section id="hub">
+    <section class="latest" aria-labelledby="latestTitle">
+      <div class="latest-head"><h2 id="latestTitle">最新更新</h2><span>最近兩項教材</span></div>
+      <div class="latest-grid" id="latestGrid"></div>
+    </section>
     <p class="hint">請選擇一個大主題</p>
     <div class="topics" id="topics"></div>
   </section>
@@ -250,6 +270,21 @@ function cardHTML(c){
     '<div class="meta"><span class="tag">' + tag + '</span><span>進入 →</span></div>' +
     '<div class="date">更新：' + date + '</div></a>';
 }
+
+
+const latestCourses = COURSES
+  .map((course, index) => ({ course, index }))
+  .filter(({ course }) => /^\d{4}-\d{2}-\d{2}$/.test(course[6]))
+  .sort((a, b) => b.course[6].localeCompare(a.course[6]) || a.index - b.index)
+  .slice(0, 2);
+$('latestGrid').innerHTML = latestCourses.map(({ course: c }) => {
+  const [cat, repo, icon, title, desc, tag, date] = c;
+  const topic = TOPICS.find(t => t.id === cat);
+  return '<a class="latest-card" href="' + BASE + repo + '" target="_blank" rel="noopener">' +
+    '<div class="latest-meta"><time class="latest-date" datetime="' + date + '">更新：' + date.replaceAll('-', '/') + '</time><span class="latest-topic">' + topic.name + '</span></div>' +
+    '<h3>' + icon + ' ' + title + '</h3><p>' + desc + '</p>' +
+    '<span class="latest-enter">開啟教材 →</span></a>';
+}).join('');
 
 $('topics').innerHTML = TOPICS.map(t => {
   const n = COURSES.filter(c => c[0] === t.id).length;
