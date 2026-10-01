@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>迷宮大挑戰｜60 秒限時</title>
+<style>
+  :root{
+    --sky:#7dd3fc; --muted:#b6c3d7; --panel:rgba(15,23,42,0.72);
+    --line:rgba(125,211,252,0.18);
+  }
+  *{ box-sizing:border-box; }
+  html{ background:#0b1728; }
+  body{
+    margin:0; color:#e5eefc;
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;
+    background:
+      radial-gradient(circle at top left, rgba(37,99,235,0.35), transparent 28%),
+      radial-gradient(circle at top right, rgba(6,182,212,0.25), transparent 24%),
+      linear-gradient(180deg,#07111f 0%,#0b1728 45%,#111827 100%);
+    background-attachment:fixed;
+    -webkit-user-select:none; user-select:none;
+  }
+  .wrap{ max-width:720px; margin:0 auto; padding:28px 18px 46px; }
+  .home{
+    display:inline-flex; align-items:center; gap:6px; text-decoration:none;
+    color:#dbeafe; background:rgba(15,23,42,0.7);
+    border:1px solid rgba(125,211,252,0.28); border-radius:999px;
+    padding:8px 16px; font-size:14px; font-weight:700;
+  }
+  h1{ margin:18px 0 6px; font-size:clamp(26px,5vw,38px); letter-spacing:-0.02em; }
+  .lead{ margin:0 0 18px; color:var(--muted); font-size:16px; line-height:1.7; }
+
+  .hud{
+    display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:12px;
+  }
+  .hud div{
+    background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    padding:12px 10px; text-align:center;
+  }
+  .hud b{ display:block; font-size:24px; color:var(--sky); line-height:1.2; }
+  .hud span{ font-size:13px; color:var(--muted); }
+  .hud .warn b{ color:#fca5a5; }
+
+  .bar{ height:10px; border-radius:999px; background:rgba(148,163,184,0.2); overflow:hidden; margin-bottom:14px; }
+  .bar i{ display:block; height:100%; width:100%; background:linear-gradient(90deg,#22c55e,#7dd3fc); transition:width .25s linear; }
+
+  .stage{ position:relative; border-radius:22px; overflow:hidden; border:1px solid var(--line); background:#0a1424; }
+  canvas{ display:block; width:100%; height:auto; }
+
+  .overlay{
+    position:absolute; inset:0; display:none; place-items:center; text-align:center;
+    background:rgba(4,10,20,0.88); padding:20px;
+  }
+  .overlay.on{ display:grid; }
+  .overlay h2{ margin:0 0 8px; font-size:30px; }
+  .overlay p{ margin:0 0 18px; color:var(--muted); font-size:17px; line-height:1.7; }
+
+  .btn{
+    font-family:inherit; font-weight:800; font-size:16px; cursor:pointer;
+    border-radius:999px; padding:12px 24px; border:1px solid rgba(125,211,252,0.4);
+    background:linear-gradient(135deg,#2563eb,#06b6d4); color:#fff;
+  }
+  .btn.ghost{ background:rgba(15,23,42,0.8); color:#dbeafe; }
+  .btn:hover{ filter:brightness(1.12); }
+
+  .pad{ display:grid; grid-template-columns:repeat(3,72px); grid-template-rows:repeat(2,72px);
+        justify-content:center; gap:10px; margin:18px auto 0; }
+  .pad button{
+    font-size:30px; border-radius:20px; cursor:pointer; font-family:inherit;
+    background:var(--panel); border:1px solid rgba(125,211,252,0.3); color:#e5eefc;
+  }
+  .pad button:active{ background:linear-gradient(135deg,#2563eb,#06b6d4); }
+  .pad .up{ grid-column:2; grid-row:1; }
+  .pad .left{ grid-column:1; grid-row:2; }
+  .pad .down{ grid-column:2; grid-row:2; }
+  .pad .right{ grid-column:3; grid-row:2; }
+
+  .tools{ display:flex; gap:10px; justify-content:center; margin-top:18px; flex-wrap:wrap; }
+  .tip{ margin:16px 0 0; text-align:center; color:var(--muted); font-size:14px; line-height:1.7; }
+
+  @media (max-width:520px){
+    .hud{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .pad{ grid-template-columns:repeat(3,64px); grid-template-rows:repeat(2,64px); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="home" href="https://tfc02106-cpu.github.io/QQ/">← 回到學習世界</a>
+  <h1>迷宮大挑戰</h1>
+  <p class="lead">每次隨機抽一張黑暗迷宮，60 秒內走到右下角的終點。車燈會照向移動方向，牆壁會擋住光線，沒照到的地方保持黑暗。用鍵盤方向鍵（或 WASD），也可以點下面的方向鍵。路上的星星是加分，撿滿三顆算完美通關。</p>
+
+  <div class="hud">
+    <div><b id="hMaze">-</b><span>迷宮編號</span></div>
+    <div id="hTimeBox"><b id="hTime">60</b><span>剩餘秒數</span></div>
+    <div><b id="hStar">0 / 3</b><span>星星</span></div>
+    <div><b id="hStep">0</b><span>步數</span></div>
+  </div>
+  <div class="bar"><i id="bar"></i></div>
+
+  <div class="stage">
+    <canvas id="cv" width="600" height="440"></canvas>
+    <div class="overlay on" id="ov">
+      <div>
+        <h2 id="ovTitle">準備好了嗎？</h2>
+        <p id="ovText">按「開始遊戲」隨機抽一張迷宮，走出第一步才開始計時。</p>
+        <button class="btn" id="ovBtn">開始遊戲</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="pad">
+    <button class="up" data-d="up" aria-label="上">▲</button>
+    <button class="left" data-d="left" aria-label="左">◀</button>
+    <button class="down" data-d="down" aria-label="下">▼</button>
+    <button class="right" data-d="right" aria-label="右">▶</button>
+  </div>
+
+  <div class="tools">
+    <button class="btn ghost" id="again">重新開始這張</button>
+    <button class="btn ghost" id="shuffle">換一張迷宮</button>
+  </div>
+
+  <p class="tip">黑暗探索：按方向鍵可以轉向照明；走過的地方離開光線後會再次變暗。<br>教學用途：體會「路徑規劃」與「時間限制」下的決策，跟課堂上的最短路徑演算法可以互相對照。</p>
+</div>
+
+<script>
+/* 想換成自己的角色圖：把下面字串改成圖片網址或 data URI 即可，留空則用內建的小機器人 */
+const PLAYER_IMAGE_SRC = '';
+
+const MAZES = [
+  { rows:['###############','#.......#.....#','#######.#####.#','#.....#.#.....#','#.#####.#.###.#','#.#.....#...#.#','#.#.######..#.#','#...#.......#.#','#.#######.#.#.#','#.........#...#','###############'], stars:[[3,6],[12,3],[2,7]] },
+  { rows:['###############','#.#...........#','#..##.#######.#','#...........#.#','##.####.#####.#','#.....#.....#.#','#.##..#.###.#.#','#.#.....#...#.#','#.#.#####.###.#','#.......#.....#','###############'], stars:[[7,6],[11,1],[1,9]] },
+  { rows:['###############','#.#.......#...#','#.#.#.###.#.#.#','#.#.#.#.....#.#','#.....#######.#','#...#...#...#.#','#.#####.#.###.#','#...#...#.....#','###.#.###.#####','#.....#.......#','###############'], stars:[[7,5],[5,9],[9,8]] },
+  { rows:['###############','#...#.....#...#','##..#.###.#.#.#','#...#...#...#.#','#.###.#.#####.#','#...#.......#.#','###.#.#.#####.#','#.#...#...#...#','#.#.#.#.#.#.###','#.....#.#.....#','###############'], stars:[[11,8],[10,3],[4,9]] },
+  { rows:['###############','#.#...........#','#.#####.###.#.#','#.#...#.#...#.#','#.#.#.#.#.###.#','#...#...#.#...#','#####.#...#.###','#...#.#.#.#.#.#','#.#.#.###.#.#.#','#.#.......#...#','###############'], stars:[[11,1],[13,5],[5,5]] }
+];
+
+const COLS = 15, ROWS = 11, CELL = 40, LIMIT = 60;
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const $ = id => document.getElementById(id);
+
+const darkness = document.createElement("canvas");
+darkness.width = cv.width; darkness.height = cv.height;
+const darkCtx = darkness.getContext("2d");
+let facing = 0;
+
+let maze, mazeNo, px, py, steps, stars, running, ended, startTime, timerId, playerImg = null;
+
+if (PLAYER_IMAGE_SRC) {
+  playerImg = new Image();
+  playerImg.onload = () => draw();
+  playerImg.onerror = () => { playerImg = null; };
+  playerImg.src = PLAYER_IMAGE_SRC;
+}
+
+function pick(n){
+  mazeNo = (n === undefined) ? Math.floor(Math.random() * MAZES.length) : n;
+  const src = MAZES[mazeNo];
+  maze = src.rows.map(r => r.split(''));
+  stars = src.stars.map(s => ({ x:s[0], y:s[1], got:false }));
+  px = 1; py = 1; steps = 0; facing = 0;
+  running = false; ended = false;
+  $('hMaze').textContent = (mazeNo + 1) + ' / 5';
+  $('hTime').textContent = LIMIT;
+  $('hStar').textContent = '0 / 3';
+  $('hStep').textContent = '0';
+  $('hTimeBox').classList.remove('warn');
+  $('bar').style.width = '100%';
+  clearInterval(timerId);
+  draw();
+}
+
+function wall(x,y){ return maze[y][x] === '#'; }
+
+function move(dx,dy){
+  if (ended || $('ov').classList.contains('on')) return;
+  facing = Math.atan2(dy, dx);
+  const nx = px + dx, ny = py + dy;
+  if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS || wall(nx,ny)) { draw(); return; }
+  if (!running) startTimer();
+  px = nx; py = ny; steps++;
+  $('hStep').textContent = steps;
+  const s = stars.find(s => !s.got && s.x === px && s.y === py);
+  if (s) { s.got = true; $('hStar').textContent = stars.filter(s => s.got).length + ' / 3'; }
+  draw();
+  if (px === COLS - 2 && py === ROWS - 2) finish(true);
+}
+
+function startTimer(){
+  running = true;
+  startTime = Date.now();
+  timerId = setInterval(() => {
+    const left = LIMIT - (Date.now() - startTime) / 1000;
+    $('hTime').textContent = Math.max(0, Math.ceil(left));
+    $('bar').style.width = Math.max(0, left / LIMIT * 100) + '%';
+    $('hTimeBox').classList.toggle('warn', left <= 10);
+    if (left <= 0) finish(false);
+  }, 200);
+}
+
+function finish(win){
+  ended = true; running = false;
+  clearInterval(timerId);
+  const used = Math.min(LIMIT, (Date.now() - startTime) / 1000).toFixed(1);
+  const got = stars.filter(s => s.got).length;
+  if (win) {
+    $('ovTitle').textContent = got === 3 ? '完美通關！' : '過關！';
+    $('ovText').textContent = '花了 ' + used + ' 秒，走了 ' + steps + ' 步，撿到 ' + got + ' 顆星星。';
+  } else {
+    $('ovTitle').textContent = '時間到，闖關失敗';
+    $('ovText').textContent = '60 秒內沒走到終點。再試一次，試著轉向照亮岔路，記住走過的路線。';
+  }
+  $('ovBtn').textContent = '再玩一次';
+  $('ov').classList.add('on');
+  draw();
+}
+
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+function drawRobot(cx,cy,s){
+  ctx.strokeStyle = '#bae6fd'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(cx, cy - s*0.52); ctx.lineTo(cx, cy - s*0.78); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - s*0.2, cy - s*0.78); ctx.lineTo(cx + s*0.2, cy - s*0.78); ctx.stroke();
+
+  const g = ctx.createLinearGradient(cx - s/2, cy - s/2, cx + s/2, cy + s/2);
+  g.addColorStop(0, '#60a5fa'); g.addColorStop(1, '#22d3ee');
+  ctx.fillStyle = g;
+  roundRect(cx - s*0.48, cy - s*0.5, s*0.96, s*0.96, s*0.3); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 2; ctx.stroke();
+
+  ctx.fillStyle = '#0f172a';
+  ctx.beginPath(); ctx.arc(cx - s*0.17, cy - s*0.1, s*0.1, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + s*0.17, cy - s*0.1, s*0.1, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(cx, cy + s*0.1, s*0.18, 0.15, Math.PI - 0.15); ctx.stroke();
+}
+
+// Ray casting stops illumination at the first wall, including at corners.
+function drawDarkness(cx, cy){
+  const reach = CELL * 4.5, near = CELL * 1.25, halfBeam = Math.PI / 5;
+  const rays = 720;
+  darkCtx.globalCompositeOperation = 'source-over';
+  darkCtx.fillStyle = '#000';
+  darkCtx.fillRect(0, 0, cv.width, cv.height);
+  darkCtx.save();
+  darkCtx.beginPath();
+  for (let i = 0; i < rays; i++){
+    const angle = i * Math.PI * 2 / rays;
+    const dx = Math.cos(angle), dy = Math.sin(angle);
+    let x = cx, y = cy;
+    for (let distance = 2; distance <= reach; distance += 2){
+      x = cx + dx * distance; y = cy + dy * distance;
+      const col = Math.floor(x / CELL), row = Math.floor(y / CELL);
+      if (col < 0 || row < 0 || col >= COLS || row >= ROWS) break;
+      if (wall(col, row)) { x += dx * 4; y += dy * 4; break; }
+    }
+    if (i === 0) darkCtx.moveTo(x, y); else darkCtx.lineTo(x, y);
+  }
+  darkCtx.closePath(); darkCtx.clip();
+  darkCtx.globalCompositeOperation = 'destination-out';
+  const glow = darkCtx.createRadialGradient(cx, cy, CELL * .35, cx, cy, near);
+  glow.addColorStop(0, '#fff'); glow.addColorStop(.6, '#ffffffcc'); glow.addColorStop(1, '#ffffff00');
+  darkCtx.fillStyle = glow;
+  darkCtx.fillRect(cx - near, cy - near, near * 2, near * 2);
+  darkCtx.save();
+  darkCtx.beginPath(); darkCtx.moveTo(cx, cy);
+  darkCtx.arc(cx, cy, reach, facing - halfBeam, facing + halfBeam);
+  darkCtx.closePath(); darkCtx.clip();
+  const beam = darkCtx.createRadialGradient(cx, cy, CELL * .5, cx, cy, reach);
+  beam.addColorStop(0, '#fff'); beam.addColorStop(.45, '#fffffff2');
+  beam.addColorStop(.75, '#ffffff99'); beam.addColorStop(1, '#ffffff00');
+  darkCtx.fillStyle = beam;
+  darkCtx.fillRect(0, 0, cv.width, cv.height);
+  darkCtx.restore(); darkCtx.restore();
+  darkCtx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(darkness, 0, 0);
+}
+
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  for (let y = 0; y < ROWS; y++){
+    for (let x = 0; x < COLS; x++){
+      const X = x*CELL, Y = y*CELL;
+      if (wall(x,y)){
+        ctx.fillStyle = '#16305a';
+        roundRect(X+1, Y+1, CELL-2, CELL-2, 7); ctx.fill();
+        ctx.fillStyle = 'rgba(125,211,252,0.10)';
+        roundRect(X+4, Y+4, CELL-8, CELL-8, 5); ctx.fill();
+      } else {
+        ctx.fillStyle = '#0d1b2f';
+        ctx.fillRect(X, Y, CELL, CELL);
+      }
+    }
+  }
+  const gx = (COLS-2)*CELL, gy = (ROWS-2)*CELL;
+  ctx.fillStyle = 'rgba(34,197,94,0.22)';
+  roundRect(gx+3, gy+3, CELL-6, CELL-6, 8); ctx.fill();
+  ctx.font = '24px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('🏁', gx + CELL/2, gy + CELL/2 + 2);
+
+  stars.forEach(s => { if (!s.got) ctx.fillText('⭐', s.x*CELL + CELL/2, s.y*CELL + CELL/2 + 2); });
+
+  const cx = px*CELL + CELL/2, cy = py*CELL + CELL/2;
+  drawDarkness(cx, cy);
+  if (playerImg && playerImg.complete && playerImg.naturalWidth) {
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, CELL*0.44, 0, 7); ctx.clip();
+    ctx.drawImage(playerImg, cx - CELL*0.44, cy - CELL*0.44, CELL*0.88, CELL*0.88);
+    ctx.restore();
+    ctx.strokeStyle = '#7dd3fc'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, CELL*0.44, 0, 7); ctx.stroke();
+  } else {
+    drawRobot(cx, cy, CELL*0.78);
+  }
+}
+
+const KEYS = {
+  ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0],
+  w:[0,-1], s:[0,1], a:[-1,0], d:[1,0], W:[0,-1], S:[0,1], A:[-1,0], D:[1,0]
+};
+const DIRS = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] };
+
+window.addEventListener('keydown', e => {
+  const k = KEYS[e.key];
+  if (!k) return;
+  e.preventDefault();
+  move(k[0], k[1]);
+}, { passive:false });
+
+document.querySelectorAll('.pad button').forEach(b => {
+  b.addEventListener('click', () => { const d = DIRS[b.dataset.d]; move(d[0], d[1]); });
+});
+
+$('ovBtn').addEventListener('click', () => { pick(); $('ov').classList.remove('on'); });
+$('again').addEventListener('click', () => { pick(mazeNo); $('ov').classList.remove('on'); });
+$('shuffle').addEventListener('click', () => {
+  let n; do { n = Math.floor(Math.random() * MAZES.length); } while (MAZES.length > 1 && n === mazeNo);
+  pick(n); $('ov').classList.remove('on');
+});
+
+pick();
+$('ov').classList.add('on');
+$('ovTitle').textContent = '準備好了嗎？';
+$('ovText').textContent = '按「開始遊戲」隨機抽一張迷宮，走出第一步才開始計時。';
+$('ovBtn').textContent = '開始遊戲';
+</script>
+</body>
+</html>
