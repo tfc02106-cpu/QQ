@@ -60,6 +60,7 @@ main{max-width:1120px;margin:auto;padding:0 24px 64px}.latest{margin-bottom:36px
 </footer>
 <script>
 const TOPICS = [
+  { id:'measurement-2026-midterm', icon:'📚', name:'量測2026期中考題庫', desc:'第1–3週 C版題庫、答案與 VIM 2.9–2.29 名詞對照，提供 Word 原檔下載', c1:'#087d73', c2:'#2563eb' },
   { id:'health', icon:'🛤️', name:'健康監測', desc:'導軌狀態評估、角度誤差模型驗證與雙干涉儀配對掃描警示', c1:'#0e6e8c', c2:'#1e7a3c' },
   { id:'dynamics', icon:'📘', name:'動力學課程', desc:'課堂簡報與教材下載：新增 1013 講義，涵蓋 2-4 曲線運動、2-5 至例題 2-19', c1:'#087d73', c2:'#2563eb' },
   { id:'game', icon:'🎮', name:'闖關小遊戲', desc:'邊玩邊練路徑規劃、方向判斷與反應速度', c1:'#ec4899', c2:'#f97316' },
@@ -73,6 +74,10 @@ const TOPICS = [
 ];
 
 const COURSES = [
+  ["measurement-2026-midterm", "QQ/measurement-2026-midterm/files/%E9%A1%8C%E5%BA%AB_%E7%AC%AC1-3%E9%80%B1_C%E7%89%88%20%28%E9%A1%8C%E5%BA%AB%29.docx", "📄", "題庫｜第1–3週 C版", "第1–3週 C版題庫，Word 原始檔。", "Word 下載", "2026-10-19"],
+  ["measurement-2026-midterm", "QQ/measurement-2026-midterm/files/%E9%A1%8C%E5%BA%AB_%E7%AC%AC1-3%E9%80%B1_C%E7%89%88%28%E7%AD%94%E6%A1%88%29.docx", "📄", "答案｜第1–3週 C版", "第1–3週 C版題庫答案，Word 原始檔。", "Word 下載", "2026-10-19"],
+  ["measurement-2026-midterm", "QQ/measurement-2026-midterm/files/VIM%E5%90%8D%E8%A9%9E%E5%B0%8D%E7%85%A7_2.9-2.29.docx", "📄", "VIM 名詞對照｜2.9–2.29", "VIM 2.9–2.29 名詞對照資料，Word 原始檔。", "Word 下載", "2026-10-19"],
+
   ['health','QQ/health-monitoring/rail-health-monitor.html','🛤️','導軌健康監測｜Rail Health Monitor','整合角度誤差模型驗證、導軌狀態評估與配對掃描警示，支援資料輸入、圖表檢視及報告匯出。','健康監測工具','2026-10-18'],
   ['dynamics','QQ/dynamics/#lecture-1013-2-4','📘','1013 上課講義｜2-4 曲線運動','第 2 章・55 張投影片。下載 PowerPoint 原檔（5.0 MB）。','PPT 下載','2026-10-13'],
   ['dynamics','QQ/dynamics/#lecture-1013-2-5','📘','1013 上課講義｜2-5 至例題 2-19｜引導詳解版','第 2 章・149 張投影片。下載 PowerPoint 原檔（9.0 MB）。','PPT 下載','2026-10-13'],
@@ -133,7 +138,7 @@ function cardHTML(c){
   return '<a class="card" href="' + BASE + repo + '" target="_blank" rel="noopener">' +
     '<div class="icon">' + icon + '</div>' +
     '<h3>' + title + '</h3><p>' + desc + '</p>' +
-    '<div class="meta"><span class="tag">' + tag + '</span><span>進入 →</span></div>' +
+    '<div class="meta"><span class="tag">' + tag + '</span><span>' + (tag === 'Word 下載' ? '下載 Word ↓' : '進入 →') + '</span></div>' +
     '<div class="date">更新：' + date + '</div></a>';
 }
 
