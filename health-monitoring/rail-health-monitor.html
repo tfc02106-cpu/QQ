@@ -81,6 +81,10 @@ td.fOK{color:var(--ok)} td.fWARN{color:var(--warn);font-weight:600} td.fALARM{co
 .action{border-left:4px solid var(--accent);background:var(--chip);padding:10px 14px;border-radius:0 6px 6px 0;margin-top:12px}
 .action.alarm{border-left-color:var(--alarm)} .action.warn{border-left-color:var(--warn)} .action.ok{border-left-color:var(--ok)}
 .action b{display:block;margin-bottom:2px}
+.tri{border-left:4px solid var(--line);padding:6px 10px;margin:4px 0;background:var(--panel);border-radius:0 5px 5px 0}
+.tri.ok{border-left-color:var(--ok)} .tri.warn{border-left-color:var(--warn)} .tri.alarm{border-left-color:var(--alarm)}
+.warnbox{margin:10px 0;padding:8px 12px;border-radius:6px;background:var(--warn-bg);font-size:13px}
+.warnbox .wE{color:var(--alarm);font-weight:600} .warnbox .wW{color:var(--fg)}
 textarea{width:100%;min-height:120px;font-family:var(--mono);font-size:12px;background:var(--code);color:var(--fg);
   border:1px solid var(--line);border-radius:5px;padding:8px;resize:vertical}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0}
@@ -111,6 +115,7 @@ footer{color:var(--muted);font-size:12px;padding-block:22px;border-top:1px solid
   </div>
 </header>
 
+<div class="warnbox" id="warnBox" hidden></div>
 <nav class="tabs" role="tablist">
   <button role="tab" aria-selected="true"  data-tab="acc">① Acceptance (Algorithm 2)</button>
   <button role="tab" aria-selected="false" data-tab="cond">② Condition (Algorithm 1)</button>
@@ -222,6 +227,7 @@ footer{color:var(--muted);font-size:12px;padding-block:22px;border-top:1px solid
       <label class="p">Δy (mm)<input id="pDy" value="250"></label>
       <label class="p">Arm tolerance ± (mm)<input id="pTol" value="5"></label>
       <label class="p">Readout correlation ρ<input id="pRho" value="0.87"></label>
+      <label class="p">Attitude reproducibility u_att (arcsec)<input id="pUt" value="1.327"></label>
       <label class="p">u_rep (arcsec)<input id="pUrep" value="5.33"></label>
       <label class="p">LSCS arm dz (mm)<input id="pDzL" value="85"></label>
       <label class="p">Family-wise α_w (warn)<input id="pAw" value="0.05"></label>
@@ -230,6 +236,10 @@ footer{color:var(--muted);font-size:12px;padding-block:22px;border-top:1px solid
       <label class="p">C1 critical z<input id="pC1" value="2.24"></label>
       <label class="p">C2 station limit<input id="pC2" value="7"></label>
       <label class="p">C3 α<input id="pC3" value="0.025"></label>
+      <label class="p">C4 α<input id="pC4" value="0.01"></label>
+      <label class="p">Set-up component σ_s (µm)<input id="pSigS" value="3.0"></label>
+      <label class="p">Simulated surveys<input id="pNsim" value="20000"></label>
+      <label class="p">Scan in a new set-up<select id="chkNewSel" onchange="document.getElementById('chkNew').checked=this.value==='1'"><option value="1">Yes</option><option value="0">No (same set-up)</option></select><input type="checkbox" id="chkNew" checked hidden></label>
     </div>
     <div class="row" style="margin-top:12px">
       <button class="btn primary" id="btnRun">Apply and recompute</button>
@@ -243,17 +253,24 @@ footer{color:var(--muted);font-size:12px;padding-block:22px;border-top:1px solid
     <div class="row"><button class="btn" id="btnCopy">Copy report</button><span class="note" id="copyMsg"></span></div>
     <div class="note">U/3 limits (µm, from the system capability equation, L = 1…10 m): <span id="u3show" style="font-family:var(--mono)"></span></div>
   </div>
+  <div class="card" style="margin-top:16px">
+    <h2>Self-test (fixed inputs → expected outputs)</h2>
+    <div class="row"><button class="btn" id="btnTest">Run self-test</button>
+      <span class="note" style="margin:0">Both algorithms, wrong models, unit errors, missing values, coordinate offsets, duplicate stations and a degenerate covariance.</span></div>
+    <div class="tscroll" id="testOut"></div>
+  </div>
 </section>
 </main>
 
 <footer>
-Algorithm 1 (rail condition index: registration check, endpoint detrending, Šidák station thresholds, χ² field statistic) and Algorithm 2 (acceptance: C1 / C2 / C3 and GLS lever-arm diagnostic) are implemented as described in this study.
-Station consistency uses the ISO 13528 zeta score; the χ² consistency test follows Cox (2002); multiple comparisons use Šidák (1967). All computation runs in the browser; data never leave this computer.
+Algorithm 1 (rail condition index: registration check, endpoint detrending, Šidák station and slope thresholds, field statistic with simulated thresholds) and Algorithm 2 (acceptance: C1–C3 and the GLS lever-arm criterion C4) are implemented as described in this study.
+Station consistency uses the ISO 13528 zeta score; the χ² consistency test follows Cox (2002); multiple comparisons use Šidák (1967). All computation runs in the browser; data never leave this computer. Program version v1.1.0 (2026-10-18).
 </footer>
 </div>
 <div class="ttip" id="ttip"></div>
 <script>
-/* 導軌健康監測 — 演算法核心（純函式，無 DOM） */
+/* 導軌健康監測 — 演算法核心（純函式，無 DOM）  版本 v1.1.0（2026-10-18） */
+const VERSION="v1.1.0";
 const ASEC = 206.264806;            // arcsec per mm/m
 const UMPA = 85/206264.806*1e3;     // µm per arcsec at 85 mm (×dz/85 for other arms)
 
@@ -333,45 +350,72 @@ function pairedDiff(x, runs, mode='abs', fold=1){
   return {x, D, m, runsD:per, sObs:Math.sqrt(mean(vars))};
 }
 
-/* ---------- 演算法 2：驗收檢定 ---------- */
-function alg2(field, paired, P){
-  // P: {dz,dy,tol,rho, c1z, c2limit, c3p}
-  const AS=1/206264.806;
-  const N=field.x.length-1;
-  const b=field.beta.slice(1).map(v=>v*AS*1e3), g=field.gamma.slice(1).map(v=>v*AS*1e3); // µm/mm
-  const pred=field.beta.map((bb,i)=>(P.dz*bb-P.dy*field.gamma[i])*AS*1e3);
-  const dev=paired.D.slice(1).map((v,i)=>v-pred[i+1]);
-  const s=paired.sObs, m=paired.m.slice(1);
-  const uaB=field.uB*AS*1e3, uaG=field.uG*AS*1e3;
+/* ---------- 演算法 2：驗收檢定（v1.1：V_att 由跨感測器比對、V_obs 由隨機效應分析；C4 為正式準則） ---------- */
+function runComponents(per, idx){            // per: runs x stations（含原點），idx: 各趟皆有值的站
+  const K=per.length, n=idx.length;
+  if(K<2||n<2) return {so:0,se:0,K,n};
+  const R=per.map(r=>idx.map(i=>r[i]));
+  const cm=idx.map((_,j)=>mean(R.map(r=>r[j])));
+  const Rc=R.map(r=>r.map((v,j)=>v-cm[j]));
+  const off=Rc.map(r=>mean(r));
+  let ss=0; Rc.forEach((r,k)=>r.forEach(v=>ss+=(v-off[k])**2));
+  const se2=ss/((K-1)*(n-1));
+  const so2=Math.max(sd(off)**2-se2/n,0);
+  return {so:Math.sqrt(so2),se:Math.sqrt(se2),K,n};
+}
+function buildV(b,g,mask,P,uaB,uaG,comp,opt={}){
+  // mask: runs x N (布林，原點除外)
+  const N=b.length, AS=1/206264.806;
   const ua2=(P.dz*uaB)**2+(P.dy*uaG)**2-2*P.dz*P.dy*P.rho*uaB*uaG;
-  const uarm=P.tol/Math.sqrt(3);
-  const V=Array.from({length:N},(_,i)=>Array.from({length:N},(_,j)=>
-    (i===j?ua2+s*s/2+s*s/m[i]:0)+ua2+s*s/2+uarm*uarm*(b[i]*b[j]+g[i]*g[j])));
-  const Vi=matInv(V);
+  const at2=opt.noAtt?0:(P.dz*P.ut*AS*1e3)**2+(P.dy*P.ut*AS*1e3)**2;
+  const m=Array.from({length:N},(_,i)=>mask.reduce((s,r)=>s+(r[i]?1:0),0));
+  const uarm2=opt.noArm?0:(P.tol*P.tol/3);
+  const sigS2=(opt.sigS||0)**2;
+  return Array.from({length:N},(_,i)=>Array.from({length:N},(_,j)=>{
+    const common=mask.reduce((s,r)=>s+(r[i]&&r[j]?1:0),0);
+    return (i===j?ua2+at2+comp.se**2/m[i]+sigS2:0)+ua2+at2
+      +comp.so**2*common/(m[i]*m[j])+uarm2*(b[i]*b[j]+g[i]*g[j]);}));
+}
+function alg2(field, paired, P, opt={}){
+  // P: {dz,dy,tol,rho,ut(arcsec), c1z,c2limit,c3p,c4p}
+  const AS=1/206264.806, N=field.x.length-1;
+  const b=field.beta.slice(1).map(v=>v*AS*1e3), g=field.gamma.slice(1).map(v=>v*AS*1e3);
+  const pred=field.beta.map((bb,i)=>(P.dz*bb-P.dy*field.gamma[i])*AS*1e3);
+  const D=paired.D.slice(1);
+  const dev=D.map((v,i)=>v-pred[i+1]);
+  const mask=paired.runsD.map(r=>r.slice(1).map(v=>v!=null&&isFinite(v)));
+  const full=[]; for(let i=1;i<paired.x.length;i++) if(paired.runsD.every(r=>r[i]!=null&&isFinite(r[i]))) full.push(i);
+  const comp=opt.comp||runComponents(paired.runsD, full);
+  const uaB=field.uB*AS*1e3, uaG=field.uG*AS*1e3;
+  const V=buildV(b,g,mask,P,uaB,uaG,comp,opt);
+  const V2=buildV(b,g,mask,P,uaB,uaG,comp,{...opt,noArm:true});
+  let Vi; try{Vi=matInv(V);}catch(e){throw new Error('Covariance matrix not invertible (check duplicate stations or missing values)');}
   const one=Array(N).fill(1);
   const umu=1/Math.sqrt(dot(one,mv(Vi,one)));
   const mu=umu*umu*dot(one,mv(Vi,dev));
   const Q=dot(dev,mv(Vi,dev));
+  if(!(Q>0)) throw new Error('Covariance matrix not positive definite');
   const udiff=V.map((r,i)=>Math.sqrt(r[i]));
   const zeta=dev.map((v,i)=>v/udiff[i]);
   const nOut=zeta.filter(z=>Math.abs(z)>2).length;
   const c3thr=chi2Ppf(1-P.c3p, N);
-  const C1=Math.abs(mu/umu)<P.c1z, C2=nOut<=P.c2limit, C3=Q<=c3thr;
-  // GLS 臂長診斷（V 去臂長項）
-  const V2=Array.from({length:N},(_,i)=>Array.from({length:N},(_,j)=>
-    (i===j?ua2+s*s/2+s*s/m[i]:0)+ua2+s*s/2));
+  const c1crit=normPpf(1-P.c3p/2);
+  // GLS（V 去臂長項）
   const Vi2=matInv(V2);
-  const A=[b,g.map(v=>-v)];                        // theta=[dz,dy]
+  const A=[b,g.map(v=>-v)];
   const AtVA=[[dot(A[0],mv(Vi2,A[0])),dot(A[0],mv(Vi2,A[1]))],[dot(A[1],mv(Vi2,A[0])),dot(A[1],mv(Vi2,A[1]))]];
   const M=matInv(AtVA);
-  const Aty=[dot(A[0],mv(Vi2,paired.D.slice(1))),dot(A[1],mv(Vi2,paired.D.slice(1)))];
+  const Aty=[dot(A[0],mv(Vi2,D)),dot(A[1],mv(Vi2,D))];
   const th=mv(M,Aty), uth=[Math.sqrt(M[0][0]),Math.sqrt(M[1][1])];
-  const glsOK=Math.abs(th[0]-P.dz)<=1.96*uth[0]&&Math.abs(th[1]-P.dy)<=1.96*uth[1];
+  const W=[[M[0][0]+P.tol*P.tol/3,M[0][1]],[M[1][0],M[1][1]+P.tol*P.tol/3]];
+  const dd=[th[0]-P.dz,th[1]-P.dy]; const wald=dot(dd,mv(matInv(W),dd));
+  const c4thr=chi2Ppf(1-P.c4p,2);
+  const C1=Math.abs(mu/umu)<P.c1z, C2=nOut<=P.c2limit, C3=Q<=c3thr, C4=wald<=c4thr;
   const rmsd=Math.sqrt(mean(dev.map(v=>v*v)));
-  return {pred,dev,udiff,zeta,mu,umu,Q,c3thr,nOut,C1,C2,C3,glsOK,
+  return {pred,dev,udiff,zeta,mu,umu,Q,c3thr,nOut,C1,C2,C3,C4,wald,c4thr,comp,V,
     gls:{dz:th[0],dy:th[1],udz:uth[0],udy:uth[1]},rmsd,
-    verdict:(C1&&C2&&C3)?'PASS':'INCONSISTENT',
-    fails:[!C1&&'C1',!C2&&'C2',!C3&&'C3',!glsOK&&'GLS'].filter(Boolean)};
+    verdict:(C1&&C2&&C3&&C4)?'PASS':'INCONSISTENT',
+    fails:[!C1&&'C1',!C2&&'C2',!C3&&'C3',!C4&&'C4'].filter(Boolean)};
 }
 
 /* ---------- 演算法 1：狀態評估 ---------- */
@@ -414,19 +458,49 @@ function alg1(base, curr, P){
   const T=dot(ds,mv(matInv(Cs),ds))/N;
   const thr=chi2Ppf(P.Tlevel,N)/N;
   const pT=1-chi2Cdf(N*T,N);
-  const kw=sidakK(P.aw,N), ka=sidakK(P.aa,N);
+  const kw=sidakK(P.aw,N+1), ka=sidakK(P.aa,N+1);
   const flags=z.map((v,i)=>(i===0||i===n-1)?'—':(Math.abs(v)>=ka?'ALARM':Math.abs(v)>=kw?'WARN':'OK'));
-  const anyA=flags.includes('ALARM'), anyW=flags.includes('WARN');
-  const verdict=(anyA||T>=thr)?'ALARM':(anyW?'WARN':'OK');
   const L=xb[n-1]-xb[0];
   const slope=((curr.m[ci[n-1]]-curr.m[ci[0]])-(base.m[bi[n-1]]-base.m[bi[0]]))/L;
+  const zSlope=slope/(Math.sqrt(2*sig2)/L);
+  const slopeFlag=Math.abs(zSlope)>=ka?'ALARM':Math.abs(zSlope)>=kw?'WARN':'OK';
+  const q95=P.q95??chi2Ppf(0.95,N)/N, q99=P.q99??thr;
+  const anyA=flags.includes('ALARM')||slopeFlag==='ALARM', anyW=flags.includes('WARN')||slopeFlag==='WARN';
+  const verdict=(anyA||T>=q99)?'ALARM':((anyW||T>=q95)?'WARN':'OK');
   const dC=bi.map((i,k)=>P.dz/206264.806*1e3*((curr.m[ci[k]]-curr.m[ci[0]])-(base.m[i]-base.m[i])*0 - (base.m[i]-base.m[bi[0]]))); // µm
+  const uDC=P.dz/206264.806*1e3*Math.sqrt(2*sig2);
   const profB=mv(Pm,bi.map(i=>base.m[i]));          // 去趨勢剖面（基準）
   const profC=mv(Pm,ci.map(j=>curr.m[j]));          // 去趨勢剖面（本次）
   return {shift:best.s, corr0:r0, corrBest:best.r, xb, N, d, z, kw, ka, flags, T, thr, pT,
-    verdict, slope, dC, sB, sC, sig:Math.sqrt(sig2), profB, profC};
+    verdict, slope, zSlope, slopeFlag, q95, q99, dC, uDC, sB, sC, sig:Math.sqrt(sig2), profB, profC, bi, ci};
 }
-if(typeof module!=='undefined')module.exports={ASEC,survey,acField,pairedDiff,alg2,alg1,chi2Ppf,sidakK,normPpf,pearson};
+
+/* ---------- 演算法 1 完整程序模擬（導軌不變）：門檻 T*95、T*99 與誤警率 ---------- */
+function rng(seed){let a=seed>>>0;return ()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;};}
+function gauss(u){let v1=u(),v2=u();if(v1<1e-12)v1=1e-12;return Math.sqrt(-2*Math.log(v1))*Math.cos(2*Math.PI*v2);}
+function simAlg1(base, curr, P, nsim=4000, seed=20261018){
+  const R0=alg1(base,curr,P);
+  const u=rng(seed), n0=base.n, nc=curr.n;
+  const sBi=base.perVar.map(v=>Math.sqrt(v)), sC=curr.sPool;
+  const tf=x=>{const j=curr.x.findIndex(v=>Math.abs(v-x)<1e-6);return j>=0?curr.m[j]:curr.m[curr.m.length-1];};
+  const Ts=[], res=[];
+  for(let k=0;k<nsim;k++){
+    const ob=P.urep/Math.SQRT2, rb=[], vb=[], mb=[];
+    base.x.forEach((x,i)=>{const t=tf(x+R0.shift)+gauss(u)*ob;const r=Array.from({length:n0},()=>t+gauss(u)*sBi[i]);
+      mb.push(mean(r)); vb.push(sd(r)**2);});
+    let ssc=0; const mc=curr.x.map((x,j)=>{const t=curr.m[j]+gauss(u)*ob;const r=Array.from({length:nc},()=>t+gauss(u)*sC);ssc+=sd(r)**2;return mean(r);});
+    const B={x:base.x,m:mb,n:n0,perVar:vb,sPool:Math.sqrt(mean(vb))}, C={x:curr.x,m:mc,n:nc,sPool:Math.sqrt(ssc/curr.x.length)};
+    const r=alg1(B,C,{...P,q95:Infinity,q99:Infinity}); Ts.push(r.T); res.push(r);
+  }
+  const srt=Ts.slice().sort((a,b)=>a-b), q=p=>srt[Math.min(srt.length-1,Math.floor(p*srt.length))];
+  const q95=q(0.95), q99=q(0.99);
+  let nA=0,nW=0,nReg=0;
+  res.forEach(r=>{const st=r.flags.concat([r.slopeFlag]);const A=st.includes('ALARM')||r.T>=q99,W=!A&&(st.includes('WARN')||r.T>=q95);
+    if(A)nA++; else if(W)nW++; if(r.shift===R0.shift)nReg++;});
+  const pEmp=Ts.filter(t=>t>=R0.T).length/nsim;
+  return {q95,q99,pEmp,rateA:nA/nsim,rateW:nW/nsim,regOK:nReg/nsim,nsim};
+}
+if(typeof module!=='undefined')module.exports={ASEC,survey,acField,pairedDiff,alg2,alg1,simAlg1,runComponents,buildV,chi2Ppf,sidakK,normPpf,pearson,mean,sd};
 
 </script>
 <script>
@@ -539,6 +613,31 @@ function loadDefaults(which){
     document.getElementById('selScanEnd').value=String(SCAN0918.start); }
 }
 function P(id){return parseFloat(document.getElementById(id).value);}
+
+function checkRows(name,rows,ncol,unit){
+  const W=[];
+  if(!rows.length){W.push(['E',name+': no data']);return W;}
+  const bad=rows.filter(r=>r.length!==ncol&&ncol>0).length;
+  if(bad)W.push(['W',name+': '+bad+' row(s) do not have '+ncol+' columns (check the separators)']);
+  if(ncol>0){const nan=rows.reduce((s,r)=>s+r.slice(1).filter(v=>!isFinite(v)).length,0);
+    if(nan)W.push(['W',name+': '+nan+' missing value(s) skipped']);}
+  else{ 
+    const empty=rows.filter(r=>{for(let k=1;k+1<r.length;k+=2)if(isFinite(r[k])&&isFinite(r[k+1]))return false;return true;}).length;
+    const half=rows.reduce((s,r)=>{let c=0;for(let k=1;k+1<r.length;k+=2)if(isFinite(r[k])!==isFinite(r[k+1]))c++;return s+c;},0);
+    if(empty)W.push(['W',name+': '+empty+' station(s) without a complete D17/D18 pair']);
+    if(half)W.push(['W',name+': '+half+' D17/D18 pair(s) with one missing value skipped']);}
+  const xs=rows.map(r=>r[0]);
+  if(new Set(xs.map(v=>v.toFixed(3))).size!==xs.length)W.push(['E',name+': duplicate stations']);
+  if(xs.some((v,i)=>i>0&&!(v>xs[i-1]))&&name.indexOf('scan')<0)W.push(['W',name+': positions not increasing']);
+  if(unit){const mx=Math.max(...rows.flatMap(r=>r.slice(1).filter(v=>isFinite(v)).map(Math.abs)));
+    if(unit==='mm/m'&&mx>5)W.push(['W',name+': largest reading '+mx.toFixed(1)+', too large for mm/m; the unit may be arcsec']);
+    if(unit==='arcsec'&&mx<0.5)W.push(['W',name+': largest reading '+mx.toFixed(3)+', too small for arcsec; the unit may be mm/m']);}
+  return W;
+}
+function onGrid(name,xs,grid){
+  const miss=xs.filter(x=>!grid.some(g=>Math.abs(g-x)<1e-6));
+  return miss.length?[['W',name+': '+miss.length+' station(s) not on the autocollimator grid ('+miss.slice(0,4).join(', ')+(miss.length>4?'…':'')+' m); no prediction there']]:[];
+}
 function readInputs(){
   const bR=parseRows(document.getElementById('txBase').value);
   const cR=parseRows(document.getElementById('txCurr').value);
@@ -560,15 +659,34 @@ function readInputs(){
   const nS=Math.floor((sR[0].length-1)/2);
   S.scan={x:sR.map(r=>r[0]),start:parseFloat(document.getElementById('selScanEnd').value),
     runs:Array.from({length:nS},(_,k)=>({d17:sR.map(r=>r[1+2*k]),d18:sR.map(r=>r[2+2*k])}))};
-  S.prm={dz:P('pDz'),dy:P('pDy'),tol:P('pTol'),rho:P('pRho'),
-         c1z:P('pC1'),c2limit:P('pC2'),c3p:P('pC3'),
-         urep:P('pUrep'),aw:P('pAw'),aa:P('pAa'),Tlevel:P('pTl'),dzL:P('pDzL')};
+  S.prm={dz:P('pDz'),dy:P('pDy'),tol:P('pTol'),rho:P('pRho'),ut:P('pUt'),
+         c1z:P('pC1'),c2limit:P('pC2'),c3p:P('pC3'),c4p:P('pC4'),sigS:P('pSigS'),nsim:Math.max(1000,P('pNsim')|0),
+         urep:P('pUrep'),aw:P('pAw'),aa:P('pAa'),Tlevel:P('pTl'),dzL:P('pDzL'),
+         newSetup:document.getElementById('chkNew').checked};
+  const ub=document.getElementById('uBase').value, uc=document.getElementById('uCurr').value;
+  S.warn=[].concat(checkRows('Baseline survey',bR,4,ub),checkRows('Current survey',cR,4,uc),checkRows('Autocollimator',aR,7,'arcsec'),
+    checkRows('Paired readings',pR,0,null),checkRows('Trigger scan',sR,0,null),
+    onGrid('Paired readings',S.paired.x,S.ac.x),onGrid('Trigger scan (rail coordinate)',S.scan.x.map(x=>S.scan.start>0?S.scan.start-x:x),S.ac.x));
+  if((pR[0].length-1)%2)S.warn.push(['W','Paired readings: columns are not D17/D18 pairs']);
 }
 
 function recompute(){
+  const msg=document.getElementById('runMsg'); msg.textContent='Computing…';
+  setTimeout(()=>{try{recompute0();}catch(e){showWarn([['E',String(e.message||e)]]);msg.textContent='Stopped';}},20);
+}
+function showWarn(W){
+  const box=document.getElementById('warnBox');
+  if(!W.length){box.hidden=true;box.innerHTML='';return;}
+  box.hidden=false;
+  box.innerHTML=W.map(([k,t])=>`<div class="${k==='E'?'wE':'wW'}">${k==='E'?'Error':'Note'}: ${t}</div>`).join('');
+}
+function recompute0(){
   readInputs();
+  if(S.warn.some(w=>w[0]==='E')){showWarn(S.warn);throw new Error('Input error; correct it and recompute');}
   S.R2=alg2(S.ac,S.paired,S.prm);
-  S.R1=alg1(S.base,S.curr,{urep:S.prm.urep,aw:S.prm.aw,aa:S.prm.aa,Tlevel:S.prm.Tlevel,dz:S.prm.dzL,shiftMax:2});
+  const P1={urep:S.prm.urep,aw:S.prm.aw,aa:S.prm.aa,Tlevel:S.prm.Tlevel,dz:S.prm.dzL,shiftMax:2};
+  S.SIM=simAlg1(S.base,S.curr,P1,S.prm.nsim);
+  S.R1=alg1(S.base,S.curr,{...P1,q95:S.SIM.q95,q99:S.SIM.q99});
   
   const AS=1/206264.806, Pz=S.prm, sc=S.scan;
   const rev=sc.start>0;                         
@@ -579,17 +697,21 @@ function recompute(){
   const Drail=Dscan.map(v=>rev?-v:v);
   const acIdx=x=>S.ac.x.findIndex(v=>Math.abs(v-x)<1e-6);
   const io=acIdx(xr[0]);
-  const uaB=S.ac.uB*AS*1e3, uaG=S.ac.uG*AS*1e3, s=S.paired.sObs;
-  const ua2=(Pz.dz*uaB)**2+(Pz.dy*uaG)**2-2*Pz.dz*Pz.dy*Pz.rho*uaB*uaG;
-  const uarm=Pz.tol/Math.sqrt(3);
+  const uaB=S.ac.uB*AS*1e3, uaG=S.ac.uG*AS*1e3;
   const pAt=i=>(Pz.dz*S.ac.beta[i]-Pz.dy*S.ac.gamma[i])*AS*1e3;
+  
+  const ks=xr.map((x,k)=>k).filter(k=>k>0&&acIdx(xr[k])>=0);
+  if(io<0) throw new Error('The start of the trigger scan, '+xr[0]+' m, is not on the autocollimator grid');
+  const bb=ks.map(k=>(S.ac.beta[acIdx(xr[k])]-S.ac.beta[io])*AS*1e3), gg=ks.map(k=>(S.ac.gamma[acIdx(xr[k])]-S.ac.gamma[io])*AS*1e3);
+  const mask=sc.runs.map(()=>ks.map(()=>true));
+  const Vt=buildV(bb,gg,mask,Pz,uaB,uaG,S.R2.comp,{sigS:Pz.newSetup?Pz.sigS:0});
   let rows=xr.map((x,k)=>{
-    const i=acIdx(x);
-    if(i<0||io<0)return {x,D:Drail[k],pred:null,u:null,z:null};
+    const i=acIdx(x), j=ks.indexOf(k);
+    if(i<0)return {x,D:Drail[k],pred:null,u:null,z:null};
     const pred=pAt(i)-pAt(io);
-    const b=(S.ac.beta[i]-S.ac.beta[io])*AS*1e3, g=(S.ac.gamma[i]-S.ac.gamma[io])*AS*1e3;
-    const u=Math.sqrt(2*ua2+s*s+s*s/m+uarm*uarm*(b*b+g*g));
-    return {x,D:Drail[k],pred,u,z:k===0?null:(Drail[k]-pred)/u};
+    if(k===0||j<0)return {x,D:Drail[k],pred,u:null,z:null};
+    const u=Math.sqrt(Vt[j][j]);
+    return {x,D:Drail[k],pred,u,z:(Drail[k]-pred)/u};
   });
   rows.sort((p,q)=>p.x-q.x);
   const N=rows.filter(r=>r.z!=null).length;
@@ -597,7 +719,7 @@ function recompute(){
   S.TR={x:rows.map(r=>r.x),D:rows.map(r=>r.D),pred:rows.map(r=>r.pred),u1:rows.map(r=>r.u),
     z:rows.map(r=>r.z),kS,m,rev,origin:xr[0],
     out:rows.map(r=>r.z!=null&&Math.abs(r.z)>kS)};
-  render();
+  render(); showWarn(S.warn);
 }
 
 
@@ -616,12 +738,12 @@ function render(){
     ['C1 overall bias  |μ/u| = '+fmt(Math.abs(R2.mu/R2.umu))+' < '+fmt(S.prm.c1z), R2.C1],
     ['C2 stations beyond 2  '+R2.nOut+' ≤ '+S.prm.c2limit, R2.C2],
     ['C3 dispersion  Q = '+fmt(R2.Q,1)+' ≤ '+fmt(R2.c3thr,1), R2.C3],
-    ['GLS arms cover drawing values', R2.glsOK]];
+    ['C4 lever arms  Wald = '+fmt(R2.wald)+' ≤ '+fmt(R2.c4thr), R2.C4]];
   document.getElementById('accChips').innerHTML=chips.map(([t,ok])=>
     `<span class="chip ${ok?'pass':'fail'}">${ok?'✓':'✗'} ${t}</span>`).join('');
   document.getElementById('accStats').innerHTML=`
     <div class="stat"><div class="lab">RMSD</div><div class="val">${fmt(R2.rmsd)} <small>µm</small></div></div>
-    <div class="stat"><div class="lab">Single-run repeatability s_obs</div><div class="val">${fmt(S.paired.sObs)} <small>µm</small></div></div>
+    <div class="stat"><div class="lab">Run offset / station noise</div><div class="val">${fmt(R2.comp.so)} / ${fmt(R2.comp.se)} <small>µm</small></div></div>
     <div class="stat"><div class="lab">GLS Δz</div><div class="val">${fmt(R2.gls.dz,1)}±${fmt(R2.gls.udz,1)} <small>mm</small></div></div>
     <div class="stat"><div class="lab">GLS Δy</div><div class="val">${fmt(R2.gls.dy,1)}±${fmt(R2.gls.udy,1)} <small>mm</small></div></div>
     <div class="stat"><div class="lab">Max |ζ|</div><div class="val">${fmt(Math.max(...R2.zeta.map(Math.abs)))}</div></div>`;
@@ -646,12 +768,13 @@ function render(){
   const vw=R1.verdict==='ALARM'?'alarm':R1.verdict==='WARN'?'warn':'ok';
   cv.className='verdict '+vw;
   cv.innerHTML=`<span class="word">${R1.verdict==='ALARM'?'ALARM':R1.verdict==='WARN'?'WARNING':'NORMAL'}</span>
-    <span class="desc">T = ${fmt(R1.T)} vs ${S.prm.Tlevel*100}% threshold ${fmt(R1.thr)} (p = ${fmt(R1.pT*100)}%);
-    station thresholds k_w = ${fmt(R1.kw)}, k_a = ${fmt(R1.ka)} (Šidák, N = ${R1.N}).</span>`;
+    <span class="desc">T = ${fmt(R1.T)}, simulated thresholds 95% ${fmt(R1.q95)}, 99% ${fmt(R1.q99)} (p = ${fmt(S.SIM.pEmp*100,1)}%, ${S.SIM.nsim} simulated surveys of the complete procedure);
+    station and slope thresholds k_w = ${fmt(R1.kw)}, k_a = ${fmt(R1.ka)} (Šidák, ${R1.N} stations + slope).</span>`;
   badge(document.getElementById('bCond'),vw,'Condition '+(R1.verdict==='ALARM'?'ALARM':R1.verdict==='WARN'?'WARNING':'NORMAL'));
   document.getElementById('regNote').textContent=
     `Registration: correlation at nominal positions ${fmt(R1.corr0)} → ${fmt(R1.corrBest)} after a ${R1.shift>=0?'+':''}${R1.shift} m shift. `+
-    `σ(station) = ${fmt(R1.sig)} arcsec (incl. u_rep ${fmt(S.prm.urep)}).`;
+    `σ(station) = ${fmt(R1.sig)} arcsec (incl. u_rep ${fmt(S.prm.urep)}). Slope change ${fmt(R1.slope)} arcsec/m (z = ${fmt(R1.zSlope)}, ${R1.slopeFlag}). `+
+    `Simulation: registration recovered in ${fmt(S.SIM.regOK*100,0)}%, false-alarm rates ALARM ${fmt(S.SIM.rateA*100,1)}%, WARN ${fmt(S.SIM.rateW*100,1)}%.`;
   const xb=R1.xb;
   drawChart(document.getElementById('chCondProf'),{
     x:xb, unit:' ″', yLabel:'arcsec', height:250, zero:true,
@@ -682,13 +805,20 @@ function render(){
       <td class="${ratio>3?'fALARM':ratio>1?'fWARN':''}">${ratio!=null?fmt(ratio):'—'}</td></tr>`;});
   document.getElementById('condTable').innerHTML=ct;
   const act=document.getElementById('condAction');
-  const anyU = xb.some((x,i)=>{const k=Math.round(x-xb[0]);const u=(k>=1&&k<=10)?U3[k-1]:null;return u&&Math.abs(R1.dC[i])>3*u;});
-  let atxt,acl;
-  if(anyU){acl='alarm';atxt='<b>Suspend the service and investigate</b>The change in correction exceeds U (= 3 × U/3), beyond what the stated uncertainty covers.';}
-  else if(R1.verdict!=='OK'||nOver>0){acl='warn';
-    atxt=`<b>Update the correction: adopt the current angle field</b>The rail has changed (T exceeds the threshold${nOver?'; at '+nOver+' station(s) the change in correction exceeds U/3 (max ratio '+fmt(maxRatio)+')':''}), but nowhere does it exceed U — past results remain within the stated uncertainty and no recall is needed.`;}
-  else{acl='ok';atxt='<b>Keep the current correction</b>No significant change detected.';}
-  act.className='action '+acl; act.innerHTML=atxt;
+  const up95=xb.map((x,i)=>i===0?0:Math.abs(R1.dC[i])+1.96*R1.uDC);
+  const Uat=xb.map(x=>{const k=Math.round(x-xb[0]);return (k>=1&&k<=10)?3*U3[k-1]:null;});
+  const overU=xb.some((x,i)=>Uat[i]&&up95[i]>Uat[i]);
+  const anyU=overU;
+  const l1=R1.verdict==='ALARM'?['alarm','Rail change: ALARM','The rail has changed (simulated 99% threshold or a station/slope alarm).']
+          :R1.verdict==='WARN'?['warn','Rail change: WARNING','A change is indicated (p = '+fmt(S.SIM.pEmp*100,1)+'%); the next survey decides whether it persists.']
+          :['ok','Rail change: NORMAL','No change detected.'];
+  const l2=R2.verdict==='PASS'?['ok','Correction update: adopt the current field','The current field has passed Algorithm 2 and contains the yaw term; this step does not depend on the rail-change verdict.']
+          :['alarm','Correction update: keep the existing correction','The current field failed the acceptance ('+R2.fails.join(', ')+').'];
+  const l3=overU?['alarm','Change of correction vs U: exceeded','The upper 95% bound of the change exceeds U; suspend the service and investigate.']
+          :nOver>0?['warn','Change of correction vs U: above U/3, below U','The point estimate exceeds U/3 at '+nOver+' station(s) (max ratio '+fmt(maxRatio)+', u(ΔC) = '+fmt(R1.uDC)+' µm); the upper 95% bound stays below U everywhere. This covers the change of the pitch correction only; the overall effect on past results is assessed separately.']
+          :['ok','Change of correction vs U: below U/3','The change of the correction stays below U/3 everywhere.'];
+  act.className='action';
+  act.innerHTML=[l1,l2,l3].map(([c,h,t])=>`<div class="tri ${c}"><b>${h}</b>${t}</div>`).join('');
 
   
   const nOut=TR.out.filter(Boolean).length;
@@ -698,7 +828,7 @@ function render(){
     <span class="desc">${nOut
       ? nOut+' station(s) outside the predicted band (Šidák family-wise 5%, k = '+fmt(TR.kS)+') → bring the angle survey forward.'
       : 'The whole scan lies within the predicted band → angle survey on the original schedule.'}
-      (mean of ${TR.m} run(s), origin ${TR.origin} m${TR.rev?', measured from the far end':''})</span>`;
+      (mean of ${TR.m} run(s), origin ${TR.origin} m${TR.rev?', measured from the far end':''}${S.prm.newSetup?', incl. set-up component σ_s = '+S.prm.sigS+' µm':', same set-up'})</span>`;
   badge(document.getElementById('bTrig'),nOut?'warn':'ok','Trigger '+(nOut?nOut+' out of band':'within band'));
   drawChart(document.getElementById('chTrig'),{
     x:TR.x, unit:' µm', yLabel:'µm', height:260,
@@ -726,15 +856,15 @@ function render(){
 [Acceptance · Algorithm 2] ${R2.verdict==='PASS'?'PASS':'INCONSISTENT ('+R2.fails.join(', ')+')'}
   RMSD = ${fmt(R2.rmsd)} µm (signal span ${fmt(Math.max(...S.paired.D)-Math.min(...S.paired.D),0)} µm, no fitting)
   C1 |μ/u| = ${fmt(Math.abs(R2.mu/R2.umu))} (< ${S.prm.c1z})   C2 beyond 2: ${R2.nOut} station(s) (≤ ${S.prm.c2limit})   C3 Q = ${fmt(R2.Q,1)} (≤ ${fmt(R2.c3thr,1)})
-  GLS arms Δz = ${fmt(R2.gls.dz,1)} ± ${fmt(R2.gls.udz,1)} mm, Δy = ${fmt(R2.gls.dy,1)} ± ${fmt(R2.gls.udy,1)} mm (95% interval ${R2.glsOK?'covers':'does not cover'} the drawing values)
+  C4 lever arms Wald = ${fmt(R2.wald)} (≤ ${fmt(R2.c4thr)}); GLS Δz = ${fmt(R2.gls.dz,1)} ± ${fmt(R2.gls.udz,1)} mm, Δy = ${fmt(R2.gls.dy,1)} ± ${fmt(R2.gls.udy,1)} mm
 [Condition · Algorithm 1] ${R1.verdict==='ALARM'?'ALARM':R1.verdict==='WARN'?'WARNING':'NORMAL'}
   Registration shift ${R1.shift>=0?'+':''}${R1.shift} m (correlation ${fmt(R1.corr0)} → ${fmt(R1.corrBest)})
-  T = ${fmt(R1.T)} vs threshold ${fmt(R1.thr)} (p = ${fmt(R1.pT*100)}%); flagged stations: ${R1.flags.filter(f=>f==='WARN'||f==='ALARM').length}
-  Max change in correction ${fmt(Math.max(...R1.dC.map(Math.abs)))} µm; ${nOver} station(s) above U/3; none above U
-  Action: ${anyU?'Suspend the service and investigate':(R1.verdict!=='OK'||nOver>0)?'Adopt the current angle field as the correction (no recall of past results)':'Keep the current correction'}
+  T = ${fmt(R1.T)}, simulated thresholds 95% ${fmt(R1.q95)} / 99% ${fmt(R1.q99)} (p = ${fmt(S.SIM.pEmp*100,1)}%); flagged stations ${R1.flags.filter(f=>f==='WARN'||f==='ALARM').length}; slope ${fmt(R1.slope)} arcsec/m (${R1.slopeFlag})
+  Max change in correction ${fmt(Math.max(...R1.dC.map(Math.abs)))} µm (u = ${fmt(R1.uDC)} µm); ${nOver} station(s) above U/3; upper 95% bound ${anyU?'exceeds':'below'} U
+  Outputs: ${l1[1]} / ${l2[1]} / ${l3[1]}
 [Paired scan · Trigger] ${nOut?nOut+' station(s) out of band → bring the angle survey forward':'Within band → schedule unchanged'}
 ────────────────────────────
-Parameters: u_rep = ${S.prm.urep}″   α_w = ${S.prm.aw}   α_a = ${S.prm.aa}   arms ${S.prm.dz}/${S.prm.dy} ± ${S.prm.tol} mm   ρ = ${S.prm.rho}   D18 sign = ${document.getElementById('selMode').value}
+Parameters: u_rep = ${S.prm.urep}″   u_att = ${S.prm.ut}″   α_w = ${S.prm.aw}   α_a = ${S.prm.aa}   arms ${S.prm.dz}/${S.prm.dy} ± ${S.prm.tol} mm   ρ = ${S.prm.rho}   σ_s = ${S.prm.newSetup?S.prm.sigS:0} µm   ${S.prm.nsim} simulations   program ${VERSION}
 Basis: Algorithms 1/2 (this study); ζ: ISO 13528; χ²: Cox (2002); multiple comparisons: Šidák (1967)`;
   document.getElementById('u3show').textContent=U3.join(', ');
   document.getElementById('runMsg').textContent='Recomputed '+new Date().toLocaleTimeString();
@@ -754,6 +884,50 @@ document.getElementById('btnCopy').addEventListener('click',()=>{
     document.getElementById('copyMsg').textContent='Copied';
   }).catch(()=>{t.select();document.getElementById('copyMsg').textContent='Press Ctrl/Cmd+C to copy';});
 });
+
+
+function selfTest(){
+  const out=[]; const ok=(name,cond,detail)=>out.push([name,!!cond,detail]);
+  const near=(v,t,tol)=>Math.abs(v-t)<=tol;
+  try{
+    const ac=acField(DEF.ac2026), pd=pairedDiff(DEF.paired.x,DEF.paired.runs,'abs',1);
+    const P={dz:-85,dy:250,tol:5,rho:0.87,ut:1.327,c1z:2.24,c2limit:7,c3p:0.025,c4p:0.01};
+    const R=alg2(ac,pd,P);
+    ok('Algorithm 2: Q = 20.9, PASS',near(R.Q,20.9,0.05)&&R.verdict==='PASS','Q = '+fmt(R.Q,2)+', '+R.verdict);
+    ok('Algorithm 2: run offset 1.54, station noise 0.76 µm',near(R.comp.so,1.54,0.01)&&near(R.comp.se,0.76,0.01),fmt(R.comp.so)+' / '+fmt(R.comp.se));
+    ok('Algorithm 2: GLS −89.3 / +255.2 mm, Wald 1.76',near(R.gls.dz,-89.3,0.05)&&near(R.gls.dy,255.2,0.05)&&near(R.wald,1.76,0.01),fmt(R.gls.dz,1)+' / '+fmt(R.gls.dy,1)+', '+fmt(R.wald));
+    const Ry=alg2({...ac,gamma:ac.gamma.map(v=>-v)},pd,P);
+    ok('Wrong model: yaw sign reversed → INCONSISTENT',Ry.verdict!=='PASS','Q = '+fmt(Ry.Q,0));
+    const Rz=alg2(ac,pd,{...P,dz:-75});
+    ok('Wrong model: Δz = −75 mm → rejected by C4',Rz.C1&&Rz.C2&&Rz.C3&&!Rz.C4,'Wald = '+fmt(Rz.wald));
+    const rows=b=>b.x.map((x,i)=>[x,...b.r[i]]);
+    const base=survey(rows(DEF.base2019),'mm/m'); base.perVar=DEF.base2019.r.map(r=>{const v=r.map(z=>z*ASEC);const m=mean(v);return sd(v)**2;});
+    const curr=survey(rows(DEF.level2026),'mm/m');
+    const P1={urep:5.33,aw:0.05,aa:0.0027,Tlevel:0.99,dz:85,shiftMax:2};
+    const A0=alg1(base,curr,P1);
+    ok('Algorithm 1: registration +0.5 m, T = 2.586',A0.shift===0.5&&near(A0.T,2.586,0.001),'shift '+A0.shift+', T = '+fmt(A0.T,3));
+    const SM=simAlg1(base,curr,P1,4000,20261018), A1=alg1(base,curr,{...P1,q95:SM.q95,q99:SM.q99});
+    ok('Algorithm 1: complete-procedure simulation → WARN',A1.verdict==='WARN'&&SM.pEmp>0.01&&SM.pEmp<0.05,'p = '+fmt(SM.pEmp*100,1)+'%, '+A1.verdict);
+    ok('Algorithm 1: slope −1.1 arcsec/m not flagged',near(A1.slope,-1.12,0.01)&&A1.slopeFlag==='OK','z = '+fmt(A1.zSlope));
+    const W1=checkRows('Baseline survey',rows(DEF.base2019).map(r=>[r[0],...r.slice(1).map(v=>v*ASEC)]),4,'mm/m');
+    ok('Unit error: arcsec labelled mm/m → warning',W1.some(w=>w[1].indexOf('unit')>=0),W1.map(w=>w[1]).join('; '));
+    const pr=DEF.paired.x.map((x,i)=>[x,...DEF.paired.runs.flatMap(r=>[r.d17[i]??NaN,r.d18[i]??NaN])]); pr[3][1]=NaN;
+    const W2=checkRows('Paired readings',pr,0,null);
+    ok('Missing value: reported and skipped',W2.some(w=>w[1].indexOf('missing')>=0),W2.map(w=>w[1]).join('; '));
+    const W3=onGrid('Paired readings',DEF.paired.x.map(x=>x+0.25),ac.x);
+    ok('Coordinate offset: off the autocollimator grid → warning',W3.length===1,W3.length?W3[0][1]:'');
+    const dup=rows(DEF.base2019); dup[2][0]=dup[1][0];
+    const W4=checkRows('Baseline survey',dup,4,'mm/m');
+    ok('Duplicate station → error, stop',W4.some(w=>w[0]==='E'),W4.map(w=>w[1]).join('; '));
+    let threw=false; try{ alg2({...ac,uB:0,uG:0},{...pd,runsD:pd.runsD.map(r=>r.map(()=>0))},{...P,ut:0,tol:0}); }catch(e){threw=true;}
+    ok('Degenerate covariance → error message',threw,threw?'caught':'not caught');
+  }catch(e){ out.push(['Run error',false,String(e.message||e)]); }
+  const n=out.filter(r=>r[1]).length;
+  document.getElementById('testOut').innerHTML=`<div class="note">Program ${VERSION}: ${n}/${out.length} checks passed</div><table class="data"><tr><th>Check</th><th>Result</th><th>Actual output</th></tr>`+
+    out.map(([a,b,c])=>`<tr><td>${a}</td><td class="${b?'fOK':'fALARM'}">${b?'pass':'FAIL'}</td><td style="text-align:left">${c}</td></tr>`).join('')+'</table>';
+}
+document.getElementById('btnTest').addEventListener('click',()=>{document.getElementById('testOut').textContent='Checking…';setTimeout(selfTest,20);});
+
 loadDefaults(); recompute();
 
 </script>
