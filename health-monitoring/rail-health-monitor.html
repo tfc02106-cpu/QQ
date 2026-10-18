@@ -178,7 +178,7 @@ footer{color:var(--muted);font-size:12px;padding-block:22px;border-top:1px solid
   <div class="verdict" id="trigVerdict"></div>
   <div class="card">
     <h2>Paired scan vs predicted band</h2>
-    <div class="note">Built-in scan: 2026-09-18 test 1–3, mean of three runs, measured 5 m from the 10 m end of the rail (rail coordinate 10 → 5 m), origin at 10 m. The blue prediction and band width come from the 2026 autocollimator angle field, the drawing arms and the repeatability of the 0825 four runs. Paste a new scan in tab ④ for routine use.</div>
+    <div class="note">Built-in scan: 2026-09-18 test 1–3, mean of three runs, measured 5 m from the 10 m end of the rail (rail coordinate 10 → 5 m), origin at 10 m. The blue prediction comes from the 2026 autocollimator angle field and the drawing arms; the band holds the angular readout, the between-session attitude, the run offset and station noise, and the arm tolerance, plus the provisional set-up component σ_s for a new set-up. Paste a new scan in tab ④ for routine use.</div>
     <div class="legend"><span><span class="sw" style="background:var(--s2)"></span>Current scan</span>
       <span><span class="sw" style="background:var(--s1)"></span>Validated model prediction</span>
       <span><span class="sw" style="background:var(--s1);opacity:.25;height:8px"></span>±k·u (Šidák)</span></div>
@@ -227,7 +227,7 @@ footer{color:var(--muted);font-size:12px;padding-block:22px;border-top:1px solid
       <label class="p">Δy (mm)<input id="pDy" value="250"></label>
       <label class="p">Arm tolerance ± (mm)<input id="pTol" value="5"></label>
       <label class="p">Readout correlation ρ<input id="pRho" value="0.87"></label>
-      <label class="p">Attitude reproducibility u_att (arcsec)<input id="pUt" value="1.327"></label>
+      <label class="p">Between-session attitude reproducibility u_att (arcsec; same value for pitch and yaw)<input id="pUt" value="1.327"></label>
       <label class="p">u_rep (arcsec)<input id="pUrep" value="5.33"></label>
       <label class="p">LSCS arm dz (mm)<input id="pDzL" value="85"></label>
       <label class="p">Family-wise α_w (warn)<input id="pAw" value="0.05"></label>
@@ -237,7 +237,7 @@ footer{color:var(--muted);font-size:12px;padding-block:22px;border-top:1px solid
       <label class="p">C2 station limit<input id="pC2" value="7"></label>
       <label class="p">C3 α<input id="pC3" value="0.025"></label>
       <label class="p">C4 α<input id="pC4" value="0.01"></label>
-      <label class="p">Set-up component σ_s (µm)<input id="pSigS" value="3.0"></label>
+      <label class="p">Provisional set-up component σ_s (µm)<input id="pSigS" value="3.0"></label>
       <label class="p">Simulated surveys<input id="pNsim" value="20000"></label>
       <label class="p">Scan in a new set-up<select id="chkNewSel" onchange="document.getElementById('chkNew').checked=this.value==='1'"><option value="1">Yes</option><option value="0">No (same set-up)</option></select><input type="checkbox" id="chkNew" checked hidden></label>
     </div>
@@ -774,7 +774,7 @@ function render(){
   document.getElementById('regNote').textContent=
     `Registration: correlation at nominal positions ${fmt(R1.corr0)} → ${fmt(R1.corrBest)} after a ${R1.shift>=0?'+':''}${R1.shift} m shift. `+
     `σ(station) = ${fmt(R1.sig)} arcsec (incl. u_rep ${fmt(S.prm.urep)}). Slope change ${fmt(R1.slope)} arcsec/m (z = ${fmt(R1.zSlope)}, ${R1.slopeFlag}). `+
-    `Simulation: registration recovered in ${fmt(S.SIM.regOK*100,0)}%, false-alarm rates ALARM ${fmt(S.SIM.rateA*100,1)}%, WARN ${fmt(S.SIM.rateW*100,1)}%.`;
+    `Complete-procedure simulation (unchanged rail): registration recovered in ${fmt(S.SIM.regOK*100,0)}%; final verdict ALARM ${fmt(S.SIM.rateA*100,1)}%, WARN only ${fmt(S.SIM.rateW*100,1)}%, at least WARN ${fmt((S.SIM.rateA+S.SIM.rateW)*100,1)}%.`;
   const xb=R1.xb;
   drawChart(document.getElementById('chCondProf'),{
     x:xb, unit:' ″', yLabel:'arcsec', height:250, zero:true,
@@ -828,7 +828,7 @@ function render(){
     <span class="desc">${nOut
       ? nOut+' station(s) outside the predicted band (Šidák family-wise 5%, k = '+fmt(TR.kS)+') → bring the angle survey forward.'
       : 'The whole scan lies within the predicted band → angle survey on the original schedule.'}
-      (mean of ${TR.m} run(s), origin ${TR.origin} m${TR.rev?', measured from the far end':''}${S.prm.newSetup?', incl. set-up component σ_s = '+S.prm.sigS+' µm':', same set-up'})</span>`;
+      (mean of ${TR.m} run(s), origin ${TR.origin} m${TR.rev?', measured from the far end':''}${S.prm.newSetup?', incl. provisional set-up component σ_s = '+S.prm.sigS+' µm':', same set-up'})</span>`;
   badge(document.getElementById('bTrig'),nOut?'warn':'ok','Trigger '+(nOut?nOut+' out of band':'within band'));
   drawChart(document.getElementById('chTrig'),{
     x:TR.x, unit:' µm', yLabel:'µm', height:260,
