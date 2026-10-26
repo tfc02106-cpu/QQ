@@ -62,7 +62,7 @@ main{max-width:1120px;margin:auto;padding:0 24px 64px}.latest{margin-bottom:36px
 const TOPICS = [
   { id:'measurement-2026-midterm', icon:'📚', name:'量測2026期中考題庫', desc:'第1–3週 C版題庫、答案與 VIM 2.9–2.29 名詞對照，提供 Word 原檔下載', c1:'#087d73', c2:'#2563eb' },
   { id:'health', icon:'🛤️', name:'健康監測', desc:'導軌狀態評估、角度誤差模型驗證與雙干涉儀配對掃描警示', c1:'#0e6e8c', c2:'#1e7a3c' },
-  { id:'dynamics', icon:'📘', name:'動力學課程', desc:'課堂講義與期中考複習：第 1–2 章例題總複習至 2-17，以及曲線運動等課程簡報', c1:'#087d73', c2:'#2563eb' },
+  { id:'dynamics', icon:'📘', name:'動力學課程', desc:'課堂講義、期中考複習與教學動畫：新增 1024 簡報及科氏項動畫，提供 Google Drive 連結', c1:'#087d73', c2:'#2563eb' },
   { id:'game', icon:'🎮', name:'闖關小遊戲', desc:'邊玩邊練路徑規劃、方向判斷與反應速度', c1:'#ec4899', c2:'#f97316' },
   { id:'vision', icon:'🖼️', name:'影像處理與機器視覺', desc:'影像基礎運算、幾何校正與視覺實驗', c1:'#2563eb', c2:'#06b6d4' },
   { id:'ai', icon:'🤖', name:'AI 檢測與 AOI', desc:'自動光學檢測、辨識模型與訓練資料生成', c1:'#7c3aed', c2:'#2563eb' },
@@ -74,6 +74,9 @@ const TOPICS = [
 ];
 
 const COURSES = [
+  ["dynamics","https://docs.google.com/presentation/d/1SX5F1EsX6HujlwVe-fyQ9tdKdT-5oCRn/edit?usp=drivesdk&ouid=102681527436857618419&rtpof=true&sd=true","📘","2-7 極座標加速度推導｜動畫複習（1024）","極座標加速度推導與動畫複習簡報，PowerPoint 原檔。","Drive 簡報","2026-10-26"],
+  ["dynamics","https://drive.google.com/file/d/1piK1GUaMob5M1Javs9c7_UrNtC_G1GrS/view?usp=drivesdk","🎬","2-7 科氏項｜邊轉邊滑動畫","科氏項「邊轉邊滑」教學動畫，MP4 影片。","Drive 影片","2026-10-26"],
+  ["dynamics","https://docs.google.com/presentation/d/1I8JozpjHyZsj5MeXJMFrBATrf6r3_2ew/edit?usp=drivesdk&ouid=102681527436857618419&rtpof=true&sd=true","📘","2-5 至例題 2-19｜引導詳解版（1024）","第 2 章 2-5 至例題 2-19 引導詳解簡報，1024 版本。","Drive 簡報","2026-10-26"],
   ["dynamics", "QQ/dynamics/#midterm", "📘", "動力學期中考｜第 1–2 章例題總複習 v2", "範圍至例題 2-17。下載 PowerPoint 原始檔（約 0.62 MB）。", "PPT 下載", "2026-10-26"],
   ["measurement-2026-midterm", "QQ/measurement-2026-midterm/files/%E9%A1%8C%E5%BA%AB_%E7%AC%AC1-3%E9%80%B1_C%E7%89%88%20%28%E9%A1%8C%E5%BA%AB%29.docx", "📄", "題庫｜第1–3週 C版", "第1–3週 C版題庫，Word 原始檔。", "Word 下載", "2026-10-19"],
   ["measurement-2026-midterm", "QQ/measurement-2026-midterm/files/%E9%A1%8C%E5%BA%AB_%E7%AC%AC1-3%E9%80%B1_C%E7%89%88%28%E7%AD%94%E6%A1%88%29.docx", "📄", "答案｜第1–3週 C版", "第1–3週 C版題庫答案，Word 原始檔。", "Word 下載", "2026-10-19"],
@@ -131,12 +134,13 @@ const COURSES = [
 ];
 
 const BASE = 'https://tfc02106-cpu.github.io/';
+const courseURL = path => /^https:\/\//.test(path) ? path : BASE + path;
 const $ = id => document.getElementById(id);
 const hub = $('hub'), detail = $('detail'), results = $('results');
 
 function cardHTML(c){
   const [cat, repo, icon, title, desc, tag, date] = c;
-  return '<a class="card" href="' + BASE + repo + '" target="_blank" rel="noopener">' +
+  return '<a class="card" href="' + courseURL(repo) + '" target="_blank" rel="noopener">' +
     '<div class="icon">' + icon + '</div>' +
     '<h3>' + title + '</h3><p>' + desc + '</p>' +
     '<div class="meta"><span class="tag">' + tag + '</span><span>' + (tag === 'Word 下載' ? '下載 Word ↓' : '進入 →') + '</span></div>' +
@@ -152,7 +156,7 @@ const latestCourses = COURSES
 $('latestGrid').innerHTML = latestCourses.map(({ course: c }) => {
   const [cat, repo, icon, title, desc, tag, date] = c;
   const topic = TOPICS.find(t => t.id === cat);
-  return '<a class="latest-card" href="' + BASE + repo + '" target="_blank" rel="noopener">' +
+  return '<a class="latest-card" href="' + courseURL(repo) + '" target="_blank" rel="noopener">' +
     '<div class="latest-meta"><time class="latest-date" datetime="' + date + '">更新：' + date.replaceAll('-', '/') + '</time><span class="latest-topic">' + topic.name + '</span></div>' +
     '<h3>' + icon + ' ' + title + '</h3><p>' + desc + '</p>' +
     '<span class="latest-enter">開啟教材 →</span></a>';
