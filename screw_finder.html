@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1c513f">
+  <meta name="description" content="手機拍照找螺絲：素色背景下的影像分割教學範本，支援照片、相機、框選、計數與手動修正。">
+  <title>找螺絲｜手機影像檢測範本</title>
+  <style>
+    :root{--paper:#f4f5ef;--white:#fff;--ink:#19352c;--muted:#627068;--line:#dce3d8;--green:#1c513f;--lime:#dcf39a;--soft:#eaf0e6;--orange:#a45b23;--radius:22px}
+    *{box-sizing:border-box} [hidden]{display:none!important}
+    body{margin:0;background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;line-height:1.6}
+    button,input,select{font:inherit} button{cursor:pointer;touch-action:manipulation} button:disabled{opacity:.45;cursor:not-allowed}
+    button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #72a236;outline-offset:4px}
+    a{color:var(--green)} svg{flex:none} button svg{width:20px;height:20px}
+    .shell{max-width:1180px;margin:auto;padding:0 32px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:25px 0;border-bottom:1px solid var(--line)}
+    .brand{display:flex;align-items:center;gap:11px;font-size:17px;font-weight:800;letter-spacing:.03em}
+    .brand-mark{width:37px;height:37px;border-radius:11px;background:var(--green);color:var(--lime);display:grid;place-items:center}
+    .brand-mark svg{width:24px;height:24px}.eyebrow{font-size:11px;letter-spacing:.15em;font-weight:700;color:var(--muted)}
+    .local-tag{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}.dot{width:7px;height:7px;background:#6c9b43;border-radius:50%}
+    .hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;padding:35px 0 24px}
+    h1{margin:5px 0 8px;font-size:clamp(30px,4vw,44px);font-weight:800;line-height:1.25;letter-spacing:-.04em}
+    .hero p{margin:0;color:var(--muted);font-size:14px}.hero-index{font-size:12px;color:var(--muted);white-space:nowrap;padding-bottom:3px}
+    .workbench{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(290px,1fr);gap:22px;align-items:start}
+    .capture-card,.result-card,.settings-card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+    .card-top{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line);font-size:13px;font-weight:700}
+    .state-tag{font-size:11px;font-weight:500;background:var(--soft);color:var(--green);border-radius:20px;padding:3px 10px}
+    .view{position:relative;background:#e9ede3;display:grid;place-items:center;min-height:330px;overflow:hidden}
+    .view::before{position:absolute;content:"";inset:0;background-image:radial-gradient(#bdc9b7 1px,transparent 1px);background-size:20px 20px;opacity:.55;pointer-events:none}
+    .view.has-image::before{display:none}.view video{display:block;max-height:510px;width:100%;object-fit:contain;background:#10241d}
+    .canvas-wrap{width:100%;line-height:0;position:relative;align-self:center}.canvas-wrap canvas{display:block;width:100%;height:auto;touch-action:pan-y}
+    .empty{position:relative;text-align:center;padding:38px 24px;z-index:1}.empty-icon{display:grid;place-items:center;width:84px;height:84px;border:1px solid #cbd6c4;border-radius:24px;margin:0 auto 22px;background:#f6f8f0;color:#55754c;transform:rotate(-5deg)}
+    .empty-icon svg{width:52px;height:52px}.empty h2{font-size:19px;letter-spacing:-.03em;margin:0 0 8px}.empty p{font-size:13px;color:var(--muted);margin:0 auto;max-width:280px}
+    .camera-guide{position:absolute;inset:14%;border:1px dashed #e7f7c5;border-radius:12px;pointer-events:none}.live-note{position:absolute;bottom:17px;left:50%;transform:translateX(-50%);white-space:nowrap;color:white;background:#10241dbd;border-radius:30px;padding:6px 15px;font-size:12px}
+    .action-area{padding:18px 20px}.main-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .button{border-radius:12px;border:1px solid var(--line);padding:12px 13px;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:47px;font-weight:700;font-size:14px;background:var(--white);color:var(--ink)}
+    .button.primary{background:var(--green);color:white;border-color:var(--green)}.button.capture{background:var(--lime);border-color:var(--lime);color:var(--green)}
+    .button:hover:enabled{filter:brightness(.96)}.link-button{border:0;background:none;color:var(--green);padding:4px;font-size:12px;text-decoration:underline;text-underline-offset:3px}
+    .secondary-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;font-size:11px;color:var(--muted)}
+    .notice{font-size:12px;margin:0;padding:0 20px 18px;min-height:38px;color:var(--muted)}.notice.error{color:#9a3e24}.notice:empty{display:none}
+    .aside{display:grid;gap:16px}.result-card{background:var(--green);color:white;border-color:var(--green);padding:23px 25px}
+    .result-label{display:flex;align-items:center;gap:8px;font-size:13px;color:#deeadf}.result-label svg{width:17px;height:17px}
+    .count-line{display:flex;align-items:baseline;gap:10px;margin:2px 0 6px}.count{font-size:76px;font-weight:650;letter-spacing:-.06em;line-height:1.2;font-variant-numeric:tabular-nums;color:var(--lime)}.unit{font-size:16px;color:#d4e3d7}
+    .result-caption{font-size:12px;margin:0;color:#c9dccd;min-height:20px}.result-meta{display:flex;justify-content:space-between;gap:8px;margin-top:18px;padding-top:15px;border-top:1px solid #ffffff26;font-size:11px;color:#d2e2d4}
+    .settings-card{padding:19px 21px}.settings-title{margin:0 0 15px;font-size:14px;font-weight:800}.field{margin:0 0 17px}.field:last-child{margin-bottom:0}
+    .field-label{display:flex;justify-content:space-between;gap:12px;font-size:12px;margin-bottom:8px}.field-label output{color:var(--green);font-weight:700;font-variant-numeric:tabular-nums}
+    select{width:100%;background:#f8faf6;border:1px solid var(--line);border-radius:9px;padding:9px 11px;color:var(--ink);font-size:13px;min-height:42px}
+    input[type=range]{width:100%;accent-color:var(--green);margin:3px 0}.range-hint{display:flex;justify-content:space-between;color:var(--muted);font-size:10px}
+    .correction{border-top:1px solid var(--line);margin-top:17px;padding-top:16px}.correction-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.button.small{font-size:12px;padding:8px 7px;min-height:42px;border-radius:9px}
+    .button.active{background:var(--soft);border-color:var(--green)}.hint{font-size:11px;color:var(--muted);margin:9px 0 0}
+    .export{display:flex;justify-content:space-between;align-items:center;margin-top:16px;gap:6px}.export .link-button{font-size:11px}
+    .tips{margin:26px 0 0;padding:19px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+    .tip{display:flex;gap:11px;align-items:flex-start}.tip-num{font-size:11px;line-height:25px;width:26px;height:26px;flex:none;text-align:center;background:#e6eddf;border-radius:50%;font-weight:700;color:var(--green)}
+    .tip strong{font-size:12px;display:block}.tip p{font-size:11px;color:var(--muted);margin:2px 0 0}
+    details{padding:18px 0 4px;color:var(--muted);font-size:12px}summary{cursor:pointer;color:var(--green);font-weight:700;width:fit-content}details p{margin:10px 0}details code{background:var(--soft);padding:1px 4px;border-radius:3px}
+    .team{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}.team th,.team td{padding:9px;text-align:left;border-bottom:1px solid var(--line)}.team th{color:var(--ink)}
+    footer{display:flex;justify-content:space-between;gap:15px;font-size:10px;color:var(--muted);padding:23px 0 30px}footer a{text-decoration:none}
+    @media(min-width:900px){.view{min-height:390px}.action-area{padding-top:20px;padding-bottom:17px}}
+    @media(max-width:760px){.shell{padding:0 18px}header{padding:18px 0}.eyebrow{font-size:10px}.hero{padding:24px 0 20px}.hero-index{display:none}.hero p{font-size:12px}.workbench{grid-template-columns:1fr;gap:15px}.view{min-height:280px}.aside{grid-template-columns:1fr;gap:15px}.result-card{padding:17px 21px;position:relative}.count-line{margin:0}.count{font-size:62px}.result-meta{position:absolute;right:20px;top:19px;margin:0;padding:0;border:0;display:grid;text-align:right;max-width:46%}.result-caption{font-size:11px}.tips{gap:13px;grid-template-columns:1fr;margin-top:21px;padding:17px 0}.tip p{font-size:12px}.tip strong{font-size:13px}.settings-card{padding:18px 20px}.card-top{padding:13px 18px}footer{font-size:10px;flex-wrap:wrap}.local-tag{font-size:10px}.brand{font-size:15px}.brand-mark{width:33px;height:33px}}
+    @media(prefers-reduced-motion:no-preference){.button{transition:filter .15s,background .15s}.result-card{transition:background .2s}}
+  </style>
+</head>
+<body>
+  <svg style="display:none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-screw" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" transform="rotate(-35 24 24)"><path d="M16 8h16v8H16zM21 16v23l3 4 3-4V16M19 21l10-3M19 27l10-3M19 33l10-3M19 39l10-3M20 12h8"/></g></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l1-2h6l1 2h4v14H4V6z"/><circle cx="12" cy="13" r="4"/></g></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="M3 17l5-5 4 4 4-6 5 7"/></g></symbol>
+    <symbol id="i-scan" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5M5 12h14"/></g></symbol>
+  </svg>
+  <div class="shell">
+    <header>
+      <div class="brand"><span class="brand-mark"><svg aria-hidden="true"><use href="#i-screw"/></svg></span><span>SCREW FINDER</span></div>
+      <span class="local-tag"><span class="dot"></span>照片留在您的裝置</span>
+    </header>
+    <main>
+      <section class="hero" aria-labelledby="title">
+        <div><div class="eyebrow">工業影像檢測與分析 / 手機實作</div><h1 id="title">拿起手機，找出螺絲。</h1><p>拍一張照片，框出疑似螺絲，輕鬆核對數量。</p></div>
+        <div class="hero-index">HTML 教學範本 · 01</div>
+      </section>
+      <div class="workbench">
+        <section class="capture-card" aria-label="照片與相機">
+          <div class="card-top"><span>01 / 取像與框選</span><span class="state-tag" id="sourceTag">等待照片</span></div>
+          <div class="view" id="view">
+            <div class="empty" id="empty"><div class="empty-icon"><svg aria-hidden="true"><use href="#i-screw"/></svg></div><h2>先把螺絲放在素色背景上</h2><p>螺絲平放、彼此分開，再從正上方拍照。也可以先試用示範圖。</p></div>
+            <video id="video" autoplay muted playsinline hidden aria-label="相機即時預覽"></video>
+            <div id="liveGuide" hidden class="camera-guide"></div><span id="liveNote" class="live-note" hidden>對準螺絲後，按下「拍照辨識」</span>
+            <div class="canvas-wrap" id="canvasWrap" hidden><canvas id="canvas" width="800" height="600" tabindex="0" role="img" aria-label="照片與疑似螺絲框選結果"></canvas></div>
+          </div>
+          <div class="action-area">
+            <div class="main-actions"><button class="button primary" id="cameraBtn" type="button"><svg aria-hidden="true"><use href="#i-camera"/></svg><span>開啟相機</span></button><button class="button" id="uploadBtn" type="button"><svg aria-hidden="true"><use href="#i-image"/></svg>選取照片</button></div>
+            <div class="main-actions" id="liveActions" hidden><button class="button capture" id="captureBtn" type="button" disabled><svg aria-hidden="true"><use href="#i-scan"/></svg>拍照辨識</button><button class="button" id="cancelCameraBtn" type="button">關閉相機</button></div>
+            <div class="secondary-actions"><span>素色背景・螺絲分開・光線均勻</span><button class="link-button" id="demoBtn" type="button">試用示範圖 ↗</button></div>
+          </div>
+          <p class="notice" id="notice" role="status" aria-live="polite">可使用相機、相簿，或先試用示範圖。</p>
+          <input id="fileInput" type="file" accept="image/*" hidden>
+          <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden>
+        </section>
+        <aside class="aside">
+          <section class="result-card" aria-label="計數結果">
+            <div class="result-label"><svg aria-hidden="true"><use href="#i-scan"/></svg>疑似螺絲</div>
+            <div class="count-line"><output class="count" id="count" aria-live="polite">—</output><span class="unit">顆</span></div>
+            <p class="result-caption" id="resultCaption">拍照後開始計數，結果請人工核對。</p>
+            <div class="result-meta"><span id="sizeMeta">尚未取像</span><span id="timeMeta">裝置內處理</span></div>
+          </section>
+          <section class="settings-card" aria-labelledby="settingsTitle">
+            <h2 class="settings-title" id="settingsTitle">02 / 調整與核對</h2>
+            <div class="field"><label class="field-label" for="background"><span>背景選擇</span></label><select id="background"><option value="auto">自動判斷背景</option><option value="light">淺色背景（白紙）</option><option value="dark">深色背景（黑紙）</option></select></div>
+            <div class="field"><label class="field-label" for="sensitivity"><span>偵測靈敏度</span><output id="sensitivityValue" for="sensitivity">標準</output></label><input id="sensitivity" type="range" min="-30" max="30" value="0" step="1"><div class="range-hint"><span>減少雜訊</span><span>找出較淡的物件</span></div></div>
+            <div class="field"><label class="field-label" for="minArea"><span>忽略小物件</span><output id="minAreaValue" for="minArea">0.05%</output></label><input id="minArea" type="range" min="1" max="40" value="5" step="1"><div class="range-hint"><span>保留小螺絲</span><span>排除較大雜點</span></div></div>
+            <div class="correction"><div class="correction-row"><button class="button small" id="recheckBtn" type="button" disabled>重新偵測</button><button class="button small" id="editBtn" type="button" disabled aria-pressed="false">手動修正</button></div><p class="hint" id="editHint">調整參數後會重新偵測；請先調整，再手動修正。</p></div>
+            <div class="export"><button class="link-button" id="exportBtn" type="button" disabled>↓ 儲存框選照片</button><button class="link-button" id="resetBtn" type="button" disabled>清除照片</button></div>
+          </section>
+        </aside>
+      </div>
+      <section class="tips" aria-label="拍攝建議">
+        <div class="tip"><span class="tip-num">1</span><div><strong>用對比明顯的背景</strong><p>深色螺絲配白紙，銀色螺絲可改用黑紙。</p></div></div>
+        <div class="tip"><span class="tip-num">2</span><div><strong>平放、分開、不重疊</strong><p>完整拍到螺絲，避免碰到照片邊緣。</p></div></div>
+        <div class="tip"><span class="tip-num">3</span><div><strong>最後再人工核對</strong><p>筆、釘子與陰影也可能被框選，請修正結果。</p></div></div>
+      </section>
+      <details><summary>教學說明與 A／B／C 協作分工</summary>
+        <p>這是傳統影像處理的入門範本：灰階 → 3×3 均值濾波 → Otsu 二值化 → 形態學閉運算 → 連通區域 → 主軸長寬比例篩選。使用原生 HTML、CSS 與 JavaScript，不需 Python、API 金鑰或模型下載。</p>
+        <p><strong>適用範圍：</strong>素色背景上、彼此分離且呈長條形的螺絲。這版沒有訓練螺絲辨識模型，不能判定物件種類、螺紋或瑕疵；端面朝上、重疊、反光強或背景複雜時可能漏判。框選表示「疑似螺絲」，沒有宣稱辨識準確率。示範圖為程式繪製，僅供操作與流程驗證。</p>
+        <p><strong>操作：</strong>開啟相機並允許使用，按「拍照辨識」。相機受限制時可按「選取照片」，也可改用手機系統拍照。進入「手動修正」後，點既有框刪除；在照片空白處點兩個對角，補上一個框。按「重新偵測」會取代手動修正。</p>
+        <table class="team"><thead><tr><th>角色</th><th>可練習的修改</th><th>程式碼入口</th></tr></thead><tbody><tr><td>A 同學</td><td>濾波、門檻與形狀條件</td><td><code>detectScrews()</code></td></tr><tr><td>B 同學</td><td>蒐集真實照片驗證，之後替換為自訂模型</td><td><code>detectScrews()</code> 的回傳框格式</td></tr><tr><td>C 同學</td><td>手機取像、畫框、操作介面</td><td><code>startCamera()</code>、<code>render()</code></td></tr><tr><td>組長</td><td>制定驗收條件、審查 PR、整合測試</td><td>各手機操作與已知數量照片</td></tr></tbody></table>
+        <p>每位同學從自己的分支修改，再開 PR 供互評。驗證時請記錄真實照片的 TP、FP、FN；示範圖通過不代表真實螺絲已通過驗證。相機串流會在拍照、關閉、切換頁面或離開時停止。照片及結果不會透過網路上傳；不會自動儲存到裝置。</p>
+        <p>手機相機請使用 HTTPS 網址，並以 Safari 或 Chrome 開啟。參考文件：<a href="https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia" target="_blank" rel="noopener noreferrer">MDN 相機 API</a>、<a href="https://docs.github.com/en/pages/getting-started-with-github-pages/securing-your-github-pages-site-with-https" target="_blank" rel="noopener noreferrer">GitHub Pages HTTPS</a>。</p>
+      </details>
+    </main>
+    <footer><span>工業影像檢測與分析 · 手機實作範本</span><a href="https://github.com/tfc02106-cpu/QQ/blob/main/screw_finder.html" target="_blank" rel="noopener noreferrer">在 GitHub 檢視程式碼 ↗</a></footer>
+  </div>
+  <script id="detector-core">
+    'use strict';
+    /* A 同學：純函式偵測核心。輸入 ImageData，輸出原影像座標的 boxes。
+       B 同學：未來可用自訂螺絲模型替換此函式，保留 {x,y,w,h} 格式。
+       此處僅做形狀篩選，沒有物件分類或 YOLO，也沒有信心分數。 */
+    function detectScrews(imageData, options = {}) {
+      const {width:w, height:h, data} = imageData, n = w*h;
+      if(w < 5 || h < 5 || data.length !== n*4) return {boxes:[], background:'light', threshold:0};
+      const gray = new Uint8Array(n), smooth = new Uint8Array(n), histogram = new Uint32Array(256);
+      const border = [];
+      for(let y=0;y<h;y++) for(let x=0;x<w;x++) {
+        const i=y*w+x, k=i*4, a=data[k+3]/255;
+        gray[i]=Math.round((.299*data[k]+.587*data[k+1]+.114*data[k+2])*a+255*(1-a));
+        if((x<3||y<3||x>=w-3||y>=h-3)&&(x+y)%3===0) border.push(gray[i]);
+      }
+      border.sort((a,b)=>a-b);
+      const bg = border[Math.floor(border.length/2)] ?? 255;
+      const background = options.background === 'light'||options.background === 'dark' ? options.background : (bg>=128?'light':'dark');
+      let minGray=255, maxGray=0, sum=0;
+      // 3×3 均值濾波；邊界使用最近像素複製。
+      for(let y=0;y<h;y++) for(let x=0;x<w;x++) {
+        let s=0;
+        for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) s+=gray[Math.max(0,Math.min(h-1,y+dy))*w+Math.max(0,Math.min(w-1,x+dx))];
+        const v=Math.round(s/9); smooth[y*w+x]=v;histogram[v]++;sum+=v;minGray=Math.min(minGray,v);maxGray=Math.max(maxGray,v);
+      }
+      if(maxGray-minGray<18) return {boxes:[],background,threshold:0};
+      // Otsu：最大化兩類之間的變異數。
+      let weight=0, partial=0, best=-1, threshold=127;
+      for(let t=0;t<255;t++) {
+        weight+=histogram[t];partial+=t*histogram[t];if(!weight)continue;if(weight===n)break;
+        const d=partial/weight-(sum-partial)/(n-weight), score=weight*(n-weight)*d*d;
+        if(score>best){best=score;threshold=t;}
+      }
+      const sensitivity=Number(options.sensitivity)||0;
+      threshold=background==='light'?Math.min(bg-18,threshold)+sensitivity:Math.max(bg+18,threshold)-sensitivity;
+      threshold=Math.max(1,Math.min(254,Math.round(threshold)));
+      const mask=new Uint8Array(n), dilated=new Uint8Array(n), closed=new Uint8Array(n);
+      for(let i=0;i<n;i++)mask[i]=background==='light'?Number(smooth[i]<=threshold):Number(smooth[i]>threshold);
+      // 3×3 閉運算：先膨脹再侵蝕，連接小裂縫。
+      for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) {
+        let any=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)any|=mask[(y+dy)*w+x+dx];dilated[y*w+x]=any;
+      }
+      for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) {
+        let all=1;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)all&=dilated[(y+dy)*w+x+dx];closed[y*w+x]=all;
+      }
+      const queue=new Uint32Array(n), boxes=[], minimum=Math.max(18,n*(Number(options.minArea)||.05)/100);
+      // 8 連通元件；PCA 主軸比例可處理斜放的螺絲。
+      for(let start=0;start<n;start++) {
+        if(!closed[start])continue;
+        let head=0,tail=1,area=0,x0=w,y0=h,x1=0,y1=0,sx=0,sy=0,sxx=0,syy=0,sxy=0;
+        queue[0]=start;closed[start]=0;
+        while(head<tail){
+          const i=queue[head++],x=i%w,y=Math.floor(i/w);area++;x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);
+          sx+=x;sy+=y;sxx+=x*x;syy+=y*y;sxy+=x*y;
+          for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+            const nx=x+dx,ny=y+dy;if(nx<0||nx>=w||ny<0||ny>=h)continue;const j=ny*w+nx;
+            if(closed[j]){closed[j]=0;queue[tail++]=j;}
+          }
+        }
+        if(area<minimum||area>n*.18||x0<=2||y0<=2||x1>=w-3||y1>=h-3)continue;
+        const bw=x1-x0+1,bh=y1-y0+1,xx=Math.max(0,sxx/area-(sx/area)**2),yy=Math.max(0,syy/area-(sy/area)**2),xy=sxy/area-sx*sy/(area*area);
+        const trace=xx+yy,disc=Math.sqrt((xx-yy)**2+4*xy*xy),ratio=Math.sqrt((trace+disc+1)/(Math.max(0,trace-disc)+1));
+        if(ratio<1.55||ratio>18||Math.min(bw,bh)<4||area/(bw*bh)<.13)continue;
+        const pad=4,left=Math.max(0,x0-pad),top=Math.max(0,y0-pad),right=Math.min(w,x1+1+pad),bottom=Math.min(h,y1+1+pad);
+        boxes.push({x:left,y:top,w:right-left,h:bottom-top});
+      }
+      boxes.sort((a,b)=>a.y-b.y||a.x-b.x);
+      return {boxes,background,threshold};
+    }
+  </script>
+  <script>
+    'use strict';
+    /* C 同學：取像、互動與畫框。組長：驗證輸入、座標格式及手機操作。 */
+    (()=>{
+      const $=id=>document.getElementById(id);
+      const canvas=$('canvas'),ctx=canvas.getContext('2d'),source=document.createElement('canvas'),sctx=source.getContext('2d',{willReadFrequently:true});
+      const video=$('video');let stream=null,hasPhoto=false,boxes=[],editing=false,anchor=null,manualChanges=0,sourceLabel='',busy=false,cameraStarting=false,cameraGeneration=0,imageGeneration=0,recheckTimer=null;
+      const options=()=>({background:$('background').value,sensitivity:Number($('sensitivity').value),minArea:Number($('minArea').value)/100});
+      function message(text,error=false){$('notice').textContent=text;$('notice').classList.toggle('error',error);}
+      function enablePhotoControls(on){for(const id of ['recheckBtn','editBtn','exportBtn','resetBtn'])$(id).disabled=!on;}
+      function updateSettings(){const v=Number($('sensitivity').value);$('sensitivityValue').textContent=v===0?'標準':(v>0?'+':'')+v;$('minAreaValue').textContent=(Number($('minArea').value)/100).toFixed(2)+'%';}
+      function render(){
+        if(!hasPhoto)return;
+        canvas.width=source.width;canvas.height=source.height;ctx.drawImage(source,0,0);
+        const lw=Math.max(2,source.width/330),font=Math.max(15,source.width/35);
+        boxes.forEach((b,i)=>{
+          ctx.fillStyle='rgba(176,229,104,.09)';ctx.fillRect(b.x,b.y,b.w,b.h);ctx.lineWidth=lw;ctx.strokeStyle=editing?'#c66b21':'#286d37';ctx.strokeRect(b.x,b.y,b.w,b.h);
+          ctx.font=`700 ${font}px system-ui`;const label=String(i+1),labelW=ctx.measureText(label).width+14,labelH=font+8,ly=b.y>=labelH?b.y-labelH:b.y;
+          ctx.fillStyle=editing?'#a75c22':'#286d37';ctx.fillRect(b.x,ly,labelW,labelH);ctx.fillStyle='#fff';ctx.fillText(label,b.x+7,ly+font+1);
+        });
+        if(anchor){ctx.strokeStyle='#cf741e';ctx.lineWidth=lw;ctx.beginPath();ctx.arc(anchor.x,anchor.y,7,0,Math.PI*2);ctx.moveTo(anchor.x-13,anchor.y);ctx.lineTo(anchor.x+13,anchor.y);ctx.moveTo(anchor.x,anchor.y-13);ctx.lineTo(anchor.x,anchor.y+13);ctx.stroke();}
+        $('count').textContent=String(boxes.length);$('resultCaption').textContent=manualChanges?`目前 ${boxes.length} 顆（已手動修正 ${manualChanges} 次），請再次核對。`:`自動框選 ${boxes.length} 顆，請人工核對。`;
+        canvas.setAttribute('aria-label',`${sourceLabel}，疑似螺絲 ${boxes.length} 顆。${editing?'手動修正模式。':''}`);
+      }
+      function setEditing(on){editing=on;anchor=null;$('editBtn').setAttribute('aria-pressed',String(on));$('editBtn').classList.toggle('active',on);$('editBtn').textContent=on?'完成修正':'手動修正';$('editHint').textContent=on?'點框可刪除；在空白處點兩個對角可補框。':'調整參數後會重新偵測；請先調整，再手動修正。';if(hasPhoto)render();}
+      function stopCamera(){
+        cameraGeneration++;cameraStarting=false;
+        if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;video.srcObject=null;video.hidden=true;$('liveGuide').hidden=true;$('liveNote').hidden=true;$('liveActions').hidden=true;
+        $('cameraBtn').parentElement.hidden=false;$('cameraBtn').disabled=false;$('cameraBtn').querySelector('span').textContent=hasPhoto?'重新拍照':'開啟相機';$('captureBtn').disabled=true;
+        $('canvasWrap').hidden=!hasPhoto;$('empty').hidden=hasPhoto;$('view').classList.toggle('has-image',hasPhoto);enablePhotoControls(hasPhoto);
+        $('sourceTag').textContent=hasPhoto?sourceLabel:'等待照片';
+      }
+      async function startCamera(){
+        if(cameraStarting)return;
+        if(!navigator.mediaDevices?.getUserMedia||!window.isSecureContext){message('瀏覽器無法直接開啟相機，改用手機系統拍照；也可按「選取照片」。');$('cameraInput').click();return;}
+        stopCamera();clearTimeout(recheckTimer);cameraStarting=true;const generation=++cameraGeneration;
+        $('cameraBtn').disabled=true;$('cameraBtn').querySelector('span').textContent='等候相機權限…';message('請允許使用相機；照片只會在本機處理。');
+        try{
+          const opened=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:960}}});
+          if(generation!==cameraGeneration||document.hidden){opened.getTracks().forEach(t=>t.stop());return;}
+          stream=opened;video.srcObject=opened;video.hidden=false;$('empty').hidden=true;$('canvasWrap').hidden=true;$('view').classList.add('has-image');
+          $('liveGuide').hidden=false;$('liveNote').hidden=false;$('liveActions').hidden=false;$('cameraBtn').parentElement.hidden=true;$('sourceTag').textContent='相機預覽';enablePhotoControls(false);
+          await video.play();if(generation!==cameraGeneration)return;
+          $('captureBtn').disabled=!video.videoWidth;message('從正上方拍攝，讓螺絲平放、分開且完整入鏡。');
+        }catch(error){
+          if(generation!==cameraGeneration)return;stopCamera();const denied=error.name==='NotAllowedError'||error.name==='SecurityError';
+          message(denied?'相機未獲允許。請到瀏覽器網站設定開啟相機，或按「選取照片」。':'無法開啟相機。請關閉其他占用相機的程式，或按「選取照片」。',true);
+        }finally{if(generation===cameraGeneration){cameraStarting=false;$('cameraBtn').disabled=false;$('cameraBtn').querySelector('span').textContent=hasPhoto?'重新拍照':'開啟相機';}}
+      }
+      function processPhoto(){
+        if(!hasPhoto||busy||stream)return;
+        clearTimeout(recheckTimer);busy=true;const generation=imageGeneration;enablePhotoControls(false);message('正在裝置內偵測…');
+        // 讓瀏覽器先顯示進度；處理影像的長邊最多 800 像素。
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{
+          try{
+            if(generation!==imageGeneration||!hasPhoto)return;
+            const start=performance.now(),result=detectScrews(sctx.getImageData(0,0,source.width,source.height),options());
+            boxes=result.boxes;manualChanges=0;editing=false;anchor=null;setEditing(false);render();
+            $('timeMeta').textContent=`處理 ${Math.round(performance.now()-start)} ms`;
+            const bg=result.background==='light'?'淺色':'深色';
+            message(boxes.length?`已以${bg}背景完成偵測，請核對框選；可手動刪除誤判或補框。`:'未找到符合長條形條件的物件。請調整背景、靈敏度，或用手動修正補框。');
+          }catch(error){message('影像處理失敗，請換一張較小的照片再試。',true);}
+          finally{busy=false;enablePhotoControls(hasPhoto&&!stream);if(hasPhoto&&!stream&&generation!==imageGeneration)requestAnimationFrame(processPhoto);}
+        }));
+      }
+      function useImage(image,label){
+        imageGeneration++;clearTimeout(recheckTimer);stopCamera();
+        const iw=image.naturalWidth||image.videoWidth||image.width,ih=image.naturalHeight||image.videoHeight||image.height;
+        if(!iw||!ih){message('照片尚未載入完成，請重試。',true);return;}
+        const scale=Math.min(1,800/Math.max(iw,ih));source.width=Math.max(1,Math.round(iw*scale));source.height=Math.max(1,Math.round(ih*scale));sctx.fillStyle='#fff';sctx.fillRect(0,0,source.width,source.height);sctx.drawImage(image,0,0,source.width,source.height);
+        hasPhoto=true;boxes=[];manualChanges=0;sourceLabel=label;editing=false;anchor=null;
+        $('view').classList.add('has-image');$('canvasWrap').hidden=false;$('empty').hidden=true;$('sourceTag').textContent=label;$('sizeMeta').textContent=`${source.width} × ${source.height} px`;$('cameraBtn').querySelector('span').textContent='重新拍照';
+        render();processPhoto();
+      }
+      async function loadFile(input){
+        const file=input.files?.[0];input.value='';if(!file)return;
+        if(!file.type.startsWith('image/')&&!/\.(jpe?g|png|webp|avif|heic|heif)$/i.test(file.name)){message('請選擇影像檔案。',true);return;}
+        if(file.size>35*1024*1024){message('照片超過 35 MB，請縮小後再試。',true);return;}
+        stopCamera();clearTimeout(recheckTimer);const generation=++imageGeneration;message('正在讀取照片…');
+        const url=URL.createObjectURL(file),image=new Image();
+        try{await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=reject;image.src=url;});if(generation===imageGeneration)useImage(image,'選取的照片');}
+        catch(error){if(generation===imageGeneration)message('無法讀取此照片格式。請先轉成 JPG 或 PNG，再重新選取。',true);}
+        finally{URL.revokeObjectURL(url);}
+      }
+      // 程式繪製的操作示範；不是實拍照片，也不代表模型辨識能力。
+      function drawDemo(){
+        const demo=document.createElement('canvas');demo.width=800;demo.height=600;const d=demo.getContext('2d');d.fillStyle='#f4f1e7';d.fillRect(0,0,800,600);
+        const screws=[[175,152,-.35,1],[410,145,.56,.86],[625,157,-.7,.95],[241,418,.42,.98],[555,415,-.3,1.1]];
+        screws.forEach(([x,y,a,s])=>{d.save();d.translate(x,y);d.rotate(a);d.scale(s,s);
+          const metal=d.createLinearGradient(-18,0,18,0);metal.addColorStop(0,'#515c61');metal.addColorStop(.38,'#b0b7b5');metal.addColorStop(.68,'#7b8588');metal.addColorStop(1,'#465057');
+          d.fillStyle=metal;d.strokeStyle='#414d53';d.lineWidth=2;d.beginPath();d.moveTo(-11,-43);d.lineTo(11,-43);d.lineTo(11,57);d.lineTo(0,75);d.lineTo(-11,57);d.closePath();d.fill();d.stroke();
+          for(let yy=-34;yy<57;yy+=10){d.beginPath();d.moveTo(-14,yy+6);d.lineTo(14,yy-3);d.stroke();}
+          d.fillRect(-25,-65,50,24);d.strokeRect(-25,-65,50,24);d.strokeStyle='#37424a';d.lineWidth=4;d.beginPath();d.moveTo(-15,-53);d.lineTo(15,-53);d.stroke();d.restore();
+        });
+        useImage(demo,'示範圖・5 顆');
+      }
+      $('cameraBtn').addEventListener('click',startCamera);
+      $('cancelCameraBtn').addEventListener('click',()=>{stopCamera();message('已關閉相機。');});
+      video.addEventListener('loadeddata',()=>{$('captureBtn').disabled=!stream||!video.videoWidth;});
+      $('captureBtn').addEventListener('click',()=>{
+        if(!stream||!video.videoWidth)return;
+        // 先複製影格再停止串流，避免部分手機在 track.stop() 後清空影格。
+        const snap=document.createElement('canvas'),scale=Math.min(1,800/Math.max(video.videoWidth,video.videoHeight));snap.width=Math.round(video.videoWidth*scale);snap.height=Math.round(video.videoHeight*scale);snap.getContext('2d').drawImage(video,0,0,snap.width,snap.height);useImage(snap,'相機照片');
+      });
+      $('uploadBtn').addEventListener('click',()=>{$('fileInput').click();});
+      $('fileInput').addEventListener('change',()=>loadFile($('fileInput')));$('cameraInput').addEventListener('change',()=>loadFile($('cameraInput')));
+      $('demoBtn').addEventListener('click',drawDemo);$('recheckBtn').addEventListener('click',processPhoto);
+      $('editBtn').addEventListener('click',()=>{if(!busy&&hasPhoto){setEditing(!editing);message(editing?'修正模式：點框刪除；點兩個對角可新增框。':'已完成手動修正，請核對數量。');}});
+      for(const id of ['background','sensitivity','minArea'])$(id).addEventListener(id==='background'?'change':'input',()=>{updateSettings();clearTimeout(recheckTimer);if(hasPhoto&&!stream)recheckTimer=setTimeout(processPhoto,200);});
+      canvas.addEventListener('click',event=>{
+        if(!editing||busy||!hasPhoto)return;const r=canvas.getBoundingClientRect(),p={x:(event.clientX-r.left)*canvas.width/r.width,y:(event.clientY-r.top)*canvas.height/r.height};
+        // 已選第一角時優先完成新框，允許手動拆分相連物件。
+        if(anchor){const x=Math.min(anchor.x,p.x),y=Math.min(anchor.y,p.y),w=Math.abs(anchor.x-p.x),h=Math.abs(anchor.y-p.y);anchor=null;if(w>=6&&h>=6){boxes.push({x,y,w,h});manualChanges++;message('已新增框選。完成後請按「完成修正」。');}else message('框選範圍太小，請重新點兩個對角。');render();return;}
+        let hit=-1;for(let i=boxes.length-1;i>=0;i--){const b=boxes[i];if(p.x>=b.x&&p.x<=b.x+b.w&&p.y>=b.y&&p.y<=b.y+b.h){hit=i;break;}}
+        if(hit>=0){boxes.splice(hit,1);manualChanges++;message('已刪除這個框。');}else{anchor=p;message('已選第一個角，請再點另一個對角。');}render();
+      });
+      canvas.addEventListener('keydown',event=>{if(event.key==='Escape'&&anchor){anchor=null;render();message('已取消新增框選。');}});
+      $('exportBtn').addEventListener('click',()=>{
+        if(!hasPhoto||busy)return;if(anchor){anchor=null;render();}
+        canvas.toBlob(blob=>{if(!blob){message('無法產生照片，請重試。',true);return;}const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`screws-${boxes.length}-${Date.now()}.png`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);message('已準備框選照片；若手機以新分頁顯示，請長按圖片儲存。');},'image/png');
+      });
+      $('resetBtn').addEventListener('click',()=>{imageGeneration++;clearTimeout(recheckTimer);hasPhoto=false;boxes=[];editing=false;anchor=null;manualChanges=0;stopCamera();setEditing(false);$('count').textContent='—';$('resultCaption').textContent='拍照後開始計數，結果請人工核對。';$('sizeMeta').textContent='尚未取像';$('timeMeta').textContent='裝置內處理';message('照片已清除，可重新拍照或選取照片。');});
+      window.addEventListener('pagehide',stopCamera);document.addEventListener('visibilitychange',()=>{if(document.hidden&&(stream||cameraStarting)){stopCamera();message('已暫停相機；返回後請重新開啟。');}});
+      updateSettings();
+    })();
+  </script>
+</body>
+</html>
