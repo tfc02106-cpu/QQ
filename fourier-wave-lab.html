@@ -1,0 +1,346 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>傅立葉拆波實驗室</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* 版面：手機優先的單欄任務流程。出題 → 任務說明 → 一格一格試波長 → 揭曉 */
+:root{
+  --bg:#F4F6F8; --panel:#FFFFFF; --ink:#152033; --muted:#5B6576; --line:#D8DEE6; --grid:#EDF1F4;
+  --accent:#1F5FAE; --pos:#1B8A5A; --neg:#C4453C; --test:#7A4FC0; --chip:#EEF3FA;
+  --c1:#0E8A7B; --c2:#C27C0E; --found:#1B8A5A; --none:#9AA3B0; --hl:#FFF3C4;
+  --f-body:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F141B; --panel:#161D27; --ink:#E5EAF2; --muted:#98A3B5; --line:#2A3442; --grid:#1D2631;
+  --accent:#72A6F0; --pos:#4CC98E; --neg:#F07A70; --test:#B593F2; --chip:#1C2737;
+  --c1:#3CC4B1; --c2:#E8A93A; --found:#4CC98E; --none:#5E6A7C; --hl:#3A3420; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F141B; --panel:#161D27; --ink:#E5EAF2; --muted:#98A3B5; --line:#2A3442; --grid:#1D2631;
+  --accent:#72A6F0; --pos:#4CC98E; --neg:#F07A70; --test:#B593F2; --chip:#1C2737;
+  --c1:#3CC4B1; --c2:#E8A93A; --found:#4CC98E; --none:#5E6A7C; --hl:#3A3420; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.65;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 48px}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-size:1.6rem;margin:0;text-wrap:balance}
+h2{font-size:1.15rem;margin:0;text-wrap:balance}
+p{margin:0}
+.lead{color:var(--muted)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.mission{border:2px solid var(--accent)}
+.stepno{display:inline-flex;align-items:center;justify-content:center;width:1.7em;height:1.7em;border-radius:50%;background:var(--accent);color:var(--panel);font-weight:900;font-size:.95rem;margin-right:6px;flex:none}
+.h{display:flex;align-items:center}
+.say{background:var(--chip);border-radius:8px;padding:10px 12px}
+.comp{border-left:5px solid var(--cc);padding-left:10px;display:flex;flex-direction:column;gap:4px}
+.comp b{color:var(--cc)}
+.row{display:grid;grid-template-columns:44px 1fr 74px;gap:8px;align-items:center}
+.v{font-family:var(--f-mono);text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+input[type=range]{width:100%;accent-color:var(--cc,var(--accent));height:28px}
+.hint{font-size:.88rem;color:var(--muted)}
+button{font:inherit;border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:999px;padding:8px 16px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--panel);font-weight:700}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+canvas{display:block;width:100%}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.grid button{border-radius:10px;padding:10px 0;font-family:var(--f-mono);font-weight:600;font-size:1.05rem}
+.grid button.cur{outline:3px solid var(--test);outline-offset:1px}
+.grid button.yes{background:var(--found);border-color:var(--found);color:var(--panel)}
+.grid button.no{background:var(--grid);color:var(--none);text-decoration:line-through}
+.verdict{border-radius:10px;padding:12px 14px;font-size:1.05rem;font-weight:700;line-height:1.55}
+.verdict.yes{background:color-mix(in srgb,var(--found) 15%,transparent);color:var(--found)}
+.verdict.no{background:var(--grid);color:var(--muted)}
+.verdict.idle{background:var(--hl);color:var(--ink);font-weight:500}
+.score{display:flex;gap:10px;flex-wrap:wrap}
+.score span{border-radius:999px;padding:4px 12px;border:2px dashed var(--line);font-weight:700;color:var(--muted)}
+.score span.got{border-style:solid;border-color:var(--found);color:var(--found)}
+.win{border:2px solid var(--found)}
+.warn{color:var(--neg);font-size:.92rem}
+.steps{margin:0;padding-left:1.3em}
+[data-try]{border-radius:10px;text-align:left;line-height:1.4}
+[data-try] small{color:var(--muted)}
+.math{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;overflow-x:auto}
+math{font-size:1.2em}
+.math math[display=block]{margin:4px 0}
+.steps li{margin:.25em 0}
+</style>
+
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:6px">
+    <h1>傅立葉拆波實驗室</h1>
+    <p class="lead">兩人一組：一人藏兩條波，一人把它們找出來。</p>
+  </header>
+
+  <!-- 出題 -->
+  <section class="card" id="setSec">
+    <h2 class="h"><span class="stepno">1</span>出題的同學：藏兩條波</h2>
+    <ol class="steps">
+      <li>拖滑桿，設定兩條波的<b>波長</b>（多長重複一次）。</li>
+      <li>波 1 是大起伏，波 2 是細紋，所以波 2 的波長要比較短。</li>
+      <li>請對面同學先別看，按下「藏起來」，再把畫面交給他。</li>
+    </ol>
+    <div class="comp" style="--cc:var(--c1)"><b>波 1：大起伏</b>
+      <div class="row"><span>波長</span><input type="range" id="T1" min="2" max="12" step="1" value="9" aria-label="波 1 波長"><span class="v" id="T1v"></span></div></div>
+    <div class="comp" style="--cc:var(--c2)"><b>波 2：細紋</b>
+      <div class="row"><span>波長</span><input type="range" id="T2" min="1" max="11" step="1" value="2" aria-label="波 2 波長"><span class="v" id="T2v"></span></div></div>
+    <p class="hint">振幅會自動決定：波長越短，波越小（振幅 ＝ 波長 ÷ 4）。</p>
+    <p class="warn" id="warn" hidden>波 2 的波長要比波 1 短，請再調一下。</p>
+    <canvas id="cvSet" data-h="0.62" aria-label="兩條波相加"></canvas>
+    <button type="button" class="primary" id="hide">藏起來，交給同學</button>
+  </section>
+
+  <!-- 猜題 -->
+  <section class="card mission" id="mSec" hidden>
+    <h2 class="h"><span class="stepno">2</span>任務：混合波裡藏了兩條波</h2>
+    <p>下面這條線，是兩條規則的波疊在一起。你的任務是找出它們的<b>波長</b>。</p>
+    <canvas id="cvMix0" data-h="0.28" aria-label="混合波"></canvas>
+    <div class="say"><b>先用眼睛看：</b>大起伏大約多長重複一次？上面好像還有細細的抖動，你看得出它的波長嗎？細紋很難用眼睛數，所以要用下面的方法。</div>
+    <div class="score"><span id="sc1">第一條：？</span><span id="sc2">第二條：？</span></div>
+  </section>
+
+  <section class="card" id="tSec" hidden>
+    <h2 class="h"><span class="stepno">3</span>拿「測試波」一個一個去試</h2>
+    <div class="say">方法很簡單：選一個波長，做一條<b>紫色測試波</b>，跟混合波<b>逐點相乘</b>。
+      <br>・波長對上了 → 跟那條藏起來的波同上同下 → <b style="color:var(--pos)">綠色（正）</b>比<b style="color:var(--neg)">紅色（負）</b>多，綠減紅不是 0
+      <br>・波長不對 → 一下同向一下反向 → 綠、紅一樣多，綠減紅 ＝ 0
+      <br>判斷方法：看圖下方的<b>「綠色總面積」和「紅色總面積」</b>兩條長條一不一樣長。</div>
+    <div class="math">
+      <p><b>寫成數學式</b></p>
+      <p class="hint">混合波（兩條正弦波相加）：</p><math display="block"><mi>y</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>=</mo><msub><mi>A</mi><mn>1</mn></msub><mi>sin</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><mrow><mn>2</mn><mi>π</mi><mi>x</mi></mrow><msub><mi>λ</mi><mn>1</mn></msub></mfrac><mo>)</mo></mrow><mo>+</mo><msub><mi>A</mi><mn>2</mn></msub><mi>sin</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><mrow><mn>2</mn><mi>π</mi><mi>x</mi></mrow><msub><mi>λ</mi><mn>2</mn></msub></mfrac><mo>)</mo></mrow></math>
+      <p class="hint">傅立葉：用波長 λ 的測試波去比對，算出「找到的振幅」</p><math display="block"><mi>A</mi><mo>(</mo><mi>λ</mi><mo>)</mo><mo>=</mo><mfrac><mn>2</mn><mi>L</mi></mfrac><msubsup><mo>∫</mo><mn>0</mn><mi>L</mi></msubsup><mi>y</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>·</mo><mi>sin</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><mrow><mn>2</mn><mi>π</mi><mi>x</mi></mrow><mi>λ</mi></mfrac><mo>)</mo></mrow><mi>d</mi><mi>x</mi></math>
+      <ul class="hint" style="margin:0;padding-left:1.2em">
+        <li><b>y(x)·sin(2πx/λ)</b>：就是下面圖上的「相乘」</li>
+        <li><b>∫ … dx ÷ L</b>：把綠色面積減紅色面積，再除以長度 L ＝ 平均</li>
+        <li><b>× 2</b>：因為 sin² 的平均是 ½，乘 2 才剛好等於振幅</li>
+        <li>λ 對上 λ₁ 時 A(λ) ＝ A₁；λ 都對不上時 A(λ) ＝ 0</li>
+      </ul>
+      <p class="hint">（完整的傅立葉轉換還會同時用 cos 去比對，用來處理波的起點不同；這裡兩條波都從 0 開始，所以只用 sin。）</p>
+    </div>
+    <div class="math" id="liveMath"></div>
+    <div class="score" id="score2"></div>
+    <p><b>點下面的數字試試看（波長，mm）：</b></p>
+    <p class="hint">找到第一條後，會把它從混合波扣掉，剩下的「殘差」再找第二條。</p>
+    <div class="grid" id="grid"></div>
+    <canvas id="cvTest" data-h="0.78" aria-label="混合波、測試波與相乘結果"></canvas>
+    <div class="verdict idle" id="verdict">先點一個數字。建議從 1 開始，一路試到 12。</div>
+  </section>
+
+  <section class="card win" id="winSec" hidden>
+    <h2 class="h"><span class="stepno">4</span>兩條都找到了？用 FFT 驗證</h2>
+    <p>你一個一個試了 1～12。電腦用 <b>FFT（快速傅立葉轉換）</b>一次把所有波長都算完，畫成頻譜。山峰在哪裡，就有那個波長的波。</p>
+    <math display="block"><msub><mi>A</mi><mi>k</mi></msub><mo>=</mo><mfrac><mn>2</mn><mi>N</mi></mfrac><mrow><mo>|</mo><munderover><mo>∑</mo><mrow><mi>n</mi><mo>=</mo><mn>0</mn></mrow><mrow><mi>N</mi><mo>−</mo><mn>1</mn></mrow></munderover><msub><mi>y</mi><mi>n</mi></msub><msup><mi>e</mi><mrow><mo>−</mo><mi>i</mi><mn>2</mn><mi>π</mi><mi>k</mi><mi>n</mi><mo>/</mo><mi>N</mi></mrow></msup><mo>|</mo></mrow><mo>,</mo><mspace width="1em"/><msub><mi>λ</mi><mi>k</mi></msub><mo>=</mo><mfrac><mi>L</mi><mi>k</mi></mfrac></math>
+    <p class="hint">y<sub>n</sub> 是混合波取樣的第 n 個點；e<sup>−i…</sup> 就是同時用 cos 和 sin 當測試波。</p>
+    <button type="button" class="primary" id="fftBtn">跑 FFT，公布答案</button>
+    <div id="fftOut" hidden style="display:flex;flex-direction:column;gap:12px">
+    <p id="fftInfo" class="hint"></p>
+    <canvas id="cvFFT" data-h="0.5" aria-label="FFT 頻譜"></canvas>
+    <p id="winText"></p>
+    <canvas id="cvWin" data-h="0.62" aria-label="拆解結果"></canvas>
+    <div class="say"><b>這就是傅立葉：</b>用不同波長的測試波去「問」：你裡面有沒有這個波長？有的話，相乘平均不是 0，還能算出它多大；沒有的話，就是 0。把每個波長都問一遍，就把混合波拆回原本的成分。</div>
+    <div class="math" id="winMath"></div>
+    <div class="card" style="border:2px dashed var(--accent);padding:14px;gap:10px">
+      <h2 class="h"><span class="stepno">5</span>換你做實驗：改 X 的最大範圍再跑 FFT</h2>
+      <p>上面的 FFT 是電腦挑好範圍跑的。實際量測時，<b>量多長（L）</b>、<b>取幾點（N）</b>是你決定的。改改看，答案還對不對？</p>
+      <div class="comp" style="--cc:var(--accent)">
+        <div class="row"><span>L</span><input type="range" id="xL" min="3" max="150" step="1" aria-label="X 最大範圍 L"><span class="v" id="xLv"></span></div>
+        <div class="row"><span>N</span><input type="range" id="xN" min="3" max="12" step="1" value="10" aria-label="取樣點數 N（2 的次方）"><span class="v" id="xNv"></span></div>
+        <p class="hint" id="xDx"></p>
+      </div>
+      <div class="btns" style="display:flex;flex-wrap:wrap;gap:8px"><span class="hint" style="width:100%">重點不是量幾 mm，而是<b>每條波在 L 裡有沒有走完整圈</b>。按下去會自動挑一個 L 示範：</span>
+        <button type="button" data-try="multi">L 剛好是兩個波長的公倍數</button>
+        <button type="button" data-try="odd">L 不是整數倍</button>
+        <button type="button" data-try="short">L 比大波還短</button>
+        <button type="button" data-try="coarse">點太少（點距太大）</button></div>
+      <canvas id="cvSamp" data-h="0.3" aria-label="取樣範圍與取樣點"></canvas>
+      <canvas id="cvFFT2" data-h="0.5" aria-label="這個範圍的 FFT 頻譜"></canvas>
+      <p id="xRes" style="font-weight:600"></p>
+      <ul class="hint" style="margin:0;padding-left:1.2em">
+        <li><b>重點是「走完整圈」</b>：L ÷ λ 是整數，每條波都剛好走完 → 山峰又尖又準。L 是 36 還是 72 都可以，只要圈數是整數。</li>
+        <li><b>L 不是整數倍</b>：最後一段波沒走完，山峰會「漏」到旁邊，變矮變胖（洩漏）。</li>
+        <li><b>L 比波長還短</b>：連一個完整的波都沒量到，FFT 找不到它。</li>
+        <li><b>點距 Δx ＝ L ÷ N 要小於 λ ÷ 2</b>：不然細紋會被看成一條假的長波（疊頻）。</li>
+        <li>FFT 能分辨的波長只有 L ÷ 1、L ÷ 2、L ÷ 3…，L 越長，可以挑的波長越密。</li>
+      </ul>
+    </div>
+    </div>
+    <button type="button" class="primary" id="again">換人出題，再玩一次</button>
+  </section>
+</div>
+
+<script>
+(function(){
+const el=id=>document.getElementById(id),css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const SHOW=24,LEN=27720,N=LEN*6,AMP=T=>T/4;
+let W=[{T:9},{T:2}],mode='set',cur=0,res={},found=[];
+const sig=x=>W.reduce((a,w)=>a+AMP(w.T)*Math.sin(2*Math.PI*x/w.T),0);
+const cache={};
+const sigR=x=>sig(x)-found.reduce((a,t)=>a+AMP(t)*Math.sin(2*Math.PI*x/t),0);
+const key=T=>W[0].T+'-'+W[1].T+'-'+found.join('.')+'-'+T;
+const GR={};
+function amp(T){const k=key(T);if(k in cache)return cache[k];let a=0,b=0,G=0,Rd=0;
+  for(let i=0;i<N;i++){const x=LEN*i/N,s=sigR(x),w=2*Math.PI*x/T,p=s*Math.sin(w);a+=p;b+=s*Math.cos(w);if(p>0)G+=p;else Rd-=p}GR[k]=[G/N,Rd/N];return cache[k]=2*Math.hypot(a,b)/N}
+function bars(T){amp(T);const [G,Rd]=GR[key(T)],m=Math.max(G,Rd);
+  return `<div style="display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;margin:8px 0;font-weight:500">
+   <span style="color:var(--pos)">綠色總面積</span><span style="display:block;height:18px;border-radius:4px;background:var(--pos);width:${G/m*100}%"></span>
+   <span style="color:var(--neg)">紅色總面積</span><span style="display:block;height:18px;border-radius:4px;background:var(--neg);width:${Rd/m*100}%"></span></div>`}
+
+['T1','T2'].forEach((id,i)=>el(id).addEventListener('input',e=>{W[i].T=+e.target.value;draw()}));
+el('hide').addEventListener('click',()=>{if(W[1].T>=W[0].T)return;mode='guess';cur=0;res={};found=[];score();live(0);
+  el('setSec').hidden=true;['mSec','tSec'].forEach(i=>el(i).hidden=false);el('winSec').hidden=true;
+  el('verdict').className='verdict idle';el('verdict').textContent='先點一個數字。建議從 1 開始，一路試到 12。';
+  buildGrid();draw();el('mSec').scrollIntoView({behavior:'smooth',block:'start'})});
+function fft(re,im){const n=re.length;for(let i=1,j=0;i<n;i++){let b=n>>1;for(;j&b;b>>=1)j^=b;j^=b;if(i<j){[re[i],re[j]]=[re[j],re[i]];[im[i],im[j]]=[im[j],im[i]]}}
+  for(let len=2;len<=n;len<<=1){const a=-2*Math.PI/len,wr=Math.cos(a),wi=Math.sin(a);for(let i=0;i<n;i+=len){let cr=1,ci=0;for(let j=0;j<len/2;j++){const ur=re[i+j],ui=im[i+j],k=i+j+len/2,vr=re[k]*cr-im[k]*ci,vi=re[k]*ci+im[k]*cr;re[i+j]=ur+vr;im[i+j]=ui+vi;re[k]=ur-vr;im[k]=ui-vi;const t=cr*wr-ci*wi;ci=cr*wi+ci*wr;cr=t}}}}
+let SPEC=null,XP={L:14,N:1024};
+function runFFT(L,N){const re=new Float64Array(N),im=new Float64Array(N);for(let n=0;n<N;n++)re[n]=sig(L*n/N);fft(re,im);return [...Array(N/2)].map((_,k)=>2*Math.hypot(re[k],im[k])/N)}
+function xexp(){const L=XP.L,N=XP.N;el('xL').value=L;el('xN').value=Math.log2(N);el('xLv').textContent=L+' mm';el('xNv').textContent=N+' 點';
+  const dx=L/N,lmin=Math.min(W[0].T,W[1].T);el('xDx').innerHTML=`點距 Δx ＝ ${L} ÷ ${N} ＝ <b>${dx.toFixed(3)} mm</b>　`+(dx<lmin/2?`（＜ 最細的波長 ${lmin} ÷ 2，夠細）`:`<span style="color:var(--neg)">（≧ 最細的波長 ${lmin} ÷ 2，點太稀！）</span>`);
+  XP.A=runFFT(L,N);const A=XP.A,mx=Math.max(...A.slice(1));const pk=[];
+  for(let k=1;k<A.length;k++){if(A[k]>0.12*mx&&A[k]>=(A[k-1]||0)&&A[k]>=(A[k+1]||0))pk.push([L/k,A[k]])}
+  const cyc=W.map(w=>`波長 ${w.T} mm 在 L 裡走了 ${+(L/w.T).toFixed(2)} 圈${Number.isInteger(L/w.T)?'（整數 ✓）':'（不是整數）'}`).join('；');
+  const say={multi:'兩條都剛好量完整圈 → FFT 答案完全正確，沒有多餘的柱子。',
+   odd:'大波最後一圈沒量完 → 它的柱子分散到旁邊好幾根（洩漏），最高的那根位置偏了、也變矮。',
+   short:'大波連一圈都沒量到 → FFT 根本看不出它，只找得到細紋。',
+   coarse:'點太稀，細紋在兩個點之間就上下好幾次 → 電腦把它看成一條假的長波（疊頻），真正的細紋不見了。'}[XP.tag]||'';
+  el('xRes').innerHTML=(say?`<div style="padding:8px 10px;border-radius:8px;background:var(--hl);color:var(--ink);margin-bottom:6px">${say}</div>`:'')+`${cyc}<br>FFT 找到的山峰：`+(pk.length?pk.map(([l,a])=>`λ ≈ ${+l.toFixed(2)} mm（振幅 ${a.toFixed(2)}）`).join('、'):'沒有明顯山峰')+`<br><span style="font-weight:400">正確答案：${W[0].T} mm（振幅 ${AMP(W[0].T)}）、${W[1].T} mm（振幅 ${AMP(W[1].T)}）</span>`;
+  draw()}
+el('xL').addEventListener('input',e=>{XP.L=+e.target.value;xexp()});el('xN').addEventListener('input',e=>{XP.N=2**(+e.target.value);xexp()});
+function preset(t){const g=(a,c)=>c?g(c,a%c):a,l=W[0].T*W[1].T/g(W[0].T,W[1].T);let L,N=1024;
+  if(t==='multi')L=l*Math.max(1,Math.round(30/l));
+  if(t==='odd'){L=Math.round(W[0].T*2.5);if(Number.isInteger(L/W[0].T))L+=1}
+  if(t==='short')L=Math.max(3,Math.floor(W[0].T*0.6));
+  if(t==='coarse'){let best=null;for(let m=1;m<=12&&!best;m++){const LL=l*m;if(LL>150)break;for(let e=3;e<=12;e++){const NN=2**e,dx=LL/NN,k1=LL/W[0].T,k2=LL/W[1].T;
+      if(!(dx>W[1].T/2&&dx<W[0].T/2))continue;let ka=((k2%NN)+NN)%NN;if(ka>NN/2)ka=NN-ka;if(ka>0&&ka!==k1&&ka<NN/2){best=[LL,NN];break}}}
+    [L,N]=best||[l*Math.max(1,Math.round(30/l)),16]}
+  return {L,N}}
+function labels(){const T1=W[0].T,T2=W[1].T,m=preset('multi'),o=preset('odd'),sh=preset('short'),c=preset('coarse');
+  const q=t=>document.querySelector('[data-try='+t+']');
+  q('multi').innerHTML=`① 每條波都走完整圈<br><small>例：L ＝ ${m.L} mm（${T1} mm 走 ${m.L/T1} 圈、${T2} mm 走 ${m.L/T2} 圈）</small>`;
+  q('odd').innerHTML=`② 大波最後一圈沒走完<br><small>例：L ＝ ${o.L} mm（${T1} mm 只走 ${+(o.L/T1).toFixed(2)} 圈）</small>`;
+  q('short').innerHTML=`③ 大波連一圈都沒走完<br><small>例：L ＝ ${sh.L} mm（比 ${T1} mm 還短）</small>`;
+  q('coarse').innerHTML=`④ 圈數都對，但點太稀<br><small>例：L ＝ ${c.L} mm、只取 ${c.N} 點（點距 ${(c.L/c.N).toFixed(2)} mm ＞ ${T2} ÷ 2）</small>`}
+document.querySelectorAll('[data-try]').forEach(b=>b.addEventListener('click',()=>{const r=preset(b.dataset.try);XP.L=r.L;XP.N=r.N;XP.tag=b.dataset.try;xexp()}));
+el('xL').addEventListener('input',()=>{XP.tag=null},true);el('xN').addEventListener('input',()=>{XP.tag=null},true);
+el('fftBtn').addEventListener('click',()=>{const g=(a,b)=>b?g(b,a%b):a,l=W[0].T*W[1].T/g(W[0].T,W[1].T);const L=l*Math.ceil(120/l),N=4096;
+  const re=new Float64Array(N),im=new Float64Array(N);for(let n=0;n<N;n++)re[n]=sig(L*n/N);fft(re,im);
+  SPEC={L,N,A:[...Array(N/2)].map((_,k)=>2*Math.hypot(re[k],im[k])/N)};
+  const peaks=SPEC.A.map((a,k)=>[k,a]).filter(([k,a])=>k>0&&a>0.05).map(([k,a])=>[L/k,a]);
+  el('fftInfo').textContent=`取樣：長度 L ＝ ${L} mm，N ＝ ${N} 點。FFT 找到 ${peaks.length} 座山峰：`+peaks.map(([l,a])=>`λ ＝ ${+l.toFixed(2)} mm（振幅 ${a.toFixed(2)}）`).join('、');
+  const ok=[...found].sort((a,b)=>a-b).join()===[W[0].T,W[1].T].sort((a,b)=>a-b).join();
+  el('winText').innerHTML=(ok?'<b style="color:var(--found)">FFT 的結果和你找到的一樣！</b>':'<b>對照一下 FFT 的結果。</b>')+`<br>答案：混合波 ＝ 波長 <b>${W[0].T} mm</b> 的大起伏 ＋ 波長 <b>${W[1].T} mm</b> 的細紋。你總共判斷了 ${Object.keys(res).length} 個波長。`;
+  el('fftBtn').hidden=true;el('fftOut').hidden=false;XP={L:SPEC.L,N:1024};labels();xexp()});
+el('again').addEventListener('click',()=>{mode='set';el('setSec').hidden=false;['mSec','tSec','winSec'].forEach(i=>el(i).hidden=true);draw();scrollTo({top:0,behavior:'smooth'})});
+
+function buildGrid(){const g=el('grid');g.innerHTML='';for(let T=1;T<=12;T++){const b=document.createElement('button');b.type='button';b.textContent=T;b.setAttribute('aria-label','試波長 '+T+' mm');
+  b.addEventListener('click',()=>tryT(T));g.appendChild(b)}}
+function tryT(T){cur=T;draw();live(T,null);
+  const v=el('verdict');v.className='verdict idle';
+  v.innerHTML=`<div>波長 ${T} mm 的測試波放上去了。看下面<b>「相乘」</b>那一列：<br>把整段（很長一段）的綠色、紅色面積各加起來：</div>${bars(T)}
+   <div style="margin-top:6px">你覺得${found.length?'殘差':'混合波'}裡<b>有沒有</b>波長 ${T} mm 的波？</div>
+   <div style="display:flex;gap:10px;margin-top:10px"><button type="button" class="primary" id="ansY">有</button><button type="button" id="ansN">沒有</button></div>`;
+  el('ansY').addEventListener('click',()=>judge(T,true));el('ansN').addEventListener('click',()=>judge(T,false));
+  marks()}
+function judge(T,say){const a=amp(T),hit=a>0.05,v=el('verdict');
+  if(say!==hit){v.className='verdict idle';
+    v.innerHTML=(say?'再看一次：綠色和紅色兩條長條是不是一樣長？一樣長就互相抵消。':'再看一次：綠色長條是不是比紅色長？多出來的部分就是這條波。')+
+    `<div style="display:flex;gap:10px;margin-top:10px"><button type="button" class="primary" id="ansY">有</button><button type="button" id="ansN">沒有</button></div>`;
+    el('ansY').addEventListener('click',()=>judge(T,true));el('ansN').addEventListener('click',()=>judge(T,false));return}
+  res[T]=hit;live(T,a);v.className='verdict '+(hit?'yes':'no');
+  v.innerHTML=(hit?`答對！綠色比紅色多，平均 ＝ ${a.toFixed(2)}，不是 0。<br>→ 混合波裡有波長 ${T} mm 的波，振幅 ${a.toFixed(2)}。`
+    :`答對！綠色和紅色互相抵消，平均 ＝ 0。<br>→ 混合波裡沒有波長 ${T} mm 的波，換下一個。<br><span style="font-weight:400;font-size:.9rem">（圖上只畫 24 mm，紅綠看起來不一定剛好一樣多；取夠長一段來平均，就會是 0。）</span>`)+`<div style="margin-top:8px;font-weight:400;color:var(--ink)">代入：<math><mi>A</mi><mo>(</mo><mn>${T}</mn><mo>)</mo><mo>=</mo><mfrac><mn>2</mn><mi>L</mi></mfrac><mo>∫</mo><mi>y</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>·</mo><mi>sin</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><mrow><mn>2</mn><mi>π</mi><mi>x</mi></mrow><mn>${T}</mn></mfrac><mo>)</mo></mrow><mi>d</mi><mi>x</mi><mo>=</mo><mn>${a.toFixed(2)}</mn></math></div>`;
+  marks();
+  if(hit&&!found.includes(T)){found.push(T);
+    if(found.length===1){Object.keys(res).forEach(k=>{if(!res[k])delete res[k]});marks();
+      v.innerHTML+=`<div style="margin-top:10px;padding:10px;border-radius:8px;background:var(--hl);color:var(--ink);font-weight:500">
+       <b>下一步：把第一條扣掉。</b>殘差 ＝ 混合波 − ${a.toFixed(2)} sin(2πx/${T})。<br>下面的圖已經換成<b>殘差</b>，剩下的就是第二條波，請再從 1 開始試一次。</div>`;
+      draw()}}
+  score();
+  if(found.length===2&&el('winSec').hidden){el('winSec').hidden=false;el('fftOut').hidden=true;el('fftBtn').hidden=false;
+    el('winText').innerHTML=`混合波 ＝ 波長 <b>${W[0].T} mm</b> 的大起伏 ＋ 波長 <b>${W[1].T} mm</b> 的細紋。你總共判斷了 ${Object.keys(res).length} 個波長。`;
+    el('winMath').innerHTML=`<p><b>用數學式寫出你的答案</b></p><math display="block"><mi>y</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>=</mo><mn>${AMP(W[0].T)}</mn><mi>sin</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><mrow><mn>2</mn><mi>π</mi><mi>x</mi></mrow><mn>${W[0].T}</mn></mfrac><mo>)</mo></mrow><mo>+</mo><mn>${AMP(W[1].T)}</mn><mi>sin</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><mrow><mn>2</mn><mi>π</mi><mi>x</mi></mrow><mn>${W[1].T}</mn></mfrac><mo>)</mo></mrow></math>`;
+    SPEC=null;draw();setTimeout(()=>el('winSec').scrollIntoView({behavior:'smooth',block:'start'}),400)}}
+function live(T,a){const S_=t=>`<mi>sin</mi><mo>&#x2061;</mo><mrow><mo>(</mo><mfrac><mrow><mn>2</mn><mi>π</mi><mi>x</mi></mrow><mn>${t}</mn></mfrac><mo>)</mo></mrow>`;
+  el('liveMath').innerHTML=T?`${found.length?`<p><b>殘差：</b></p><math display="block"><mi>r</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>=</mo><mi>y</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>−</mo><mn>${AMP(found[0])}</mn>${S_(found[0])}</math>`:''}<p><b>現在試的是 λ ＝ ${T} mm，代入：</b></p><math display="block"><mi>A</mi><mo>(</mo><mn>${T}</mn><mo>)</mo><mo>=</mo><mfrac><mn>2</mn><mi>L</mi></mfrac><msubsup><mo>∫</mo><mn>0</mn><mi>L</mi></msubsup>${found.length?'<mi>r</mi>':'<mi>y</mi>'}<mo>(</mo><mi>x</mi><mo>)</mo><mo>·</mo>${S_(T)}<mi>d</mi><mi>x</mi><mo>=</mo>${a==null?'<mi mathcolor="#7A4FC0">？</mi>':`<mn>${a.toFixed(2)}</mn>`}</math><p class="hint">紫色測試波就是 ${'sin(2πx/'+T+')'}${found.length?'，拿去比對的是殘差 r(x)':''}；${a==null?'先判斷有沒有，答對才會算出數字。':(a>0.05?'不是 0 → 有這條波，振幅 '+a.toFixed(2)+'。':'＝ 0 → 沒有這條波。')}</p>`
+   :'<p class="hint">點一個波長，這裡會把它代入公式。</p>'}
+function score(){const t=(i)=>`<span class="${found[i]?'got':''}">${i?'第二條':'第一條'}：${found[i]?found[i]+' mm ✓':'？'}</span>`;
+  el('score2').innerHTML=t(0)+t(1);el('sc1').textContent=(found[0]?'第一條：'+found[0]+' mm ✓':'第一條：？');el('sc1').className=found[0]?'got':'';
+  el('sc2').textContent=(found[1]?'第二條：'+found[1]+' mm ✓':'第二條：？');el('sc2').className=found[1]?'got':''}
+function marks(){[...el('grid').children].forEach((b,i)=>{const t=i+1;b.className=(t===cur?'cur ':'')+(t in res?(res[t]?'yes':'no'):'')})}
+
+function setup(cv){const dpr=devicePixelRatio||1,w=cv.clientWidth,h=Math.round(w*(+cv.dataset.h));
+  cv.style.height=h+'px';cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);return{g,w,h}}
+function line(g,f,X0,X1,y,sc,col,lw){const n=Math.round((X1-X0)*2);g.beginPath();
+  for(let k=0;k<=n;k++){const x=SHOW*k/n,X=X0+(X1-X0)*k/n,Y=y-f(x)*sc;k?g.lineTo(X,Y):g.moveTo(X,Y)}g.strokeStyle=col;g.lineWidth=lw;g.stroke()}
+function base(g,X0,X1,y){g.strokeStyle=css('--grid');g.lineWidth=1;g.beginPath();g.moveTo(X0,y);g.lineTo(X1,y);g.stroke()}
+function txt(g,s,x,y,col,al,wt,sz){g.fillStyle=col;g.font=(wt||'700')+' '+(sz||14)+'px '+css('--f-body');g.textAlign=al||'left';g.fillText(s,x,y)}
+function xaxis(g,X0,X1,y){g.fillStyle=css('--muted');g.font='12px '+css('--f-mono');g.textAlign='center';
+  for(let s=0;s<=SHOW;s+=2){const X=X0+(X1-X0)*s/SHOW;g.fillRect(X,y,1,4);if(s%4===0||X1-X0>500)g.fillText(s,X,y+16)}
+  g.textAlign='right';g.fillText('mm',X0-6,y+16)}
+const S=()=>AMP(W[0].T)+AMP(W[1].T);
+
+function draw(){
+  el('T1v').textContent=W[0].T+' mm';el('T2v').textContent=W[1].T+' mm';
+  const bad=W[1].T>=W[0].T;el('warn').hidden=!bad;el('hide').disabled=bad;
+  const X0=(el('setSec').clientWidth<520?58:80),ink=css('--ink');
+  if(mode==='set'){const{g,w,h}=setup(el('cvSet'));const X1=w-8,lh=(h-28)/3;
+    [[0,'波 1','--c1'],[1,'波 2','--c2']].forEach(([i,n,c])=>{const y=lh*(i+0.5);base(g,X0,X1,y);txt(g,n,4,y+5,css(c));
+      line(g,x=>AMP(W[i].T)*Math.sin(2*Math.PI*x/W[i].T),X0,X1,y,(lh*0.45)/3,css(c),2)});
+    txt(g,'＋',X0-30,lh+6,css('--muted'),'left','400',18);txt(g,'＝',X0-30,lh*2+6,css('--muted'),'left','400',18);
+    const y=lh*2.5;base(g,X0,X1,y);txt(g,'混合',4,y+5,ink);line(g,sig,X0,X1,y,(lh*0.47)/S(),ink,2.2);xaxis(g,X0,X1,h-22);return}
+  {const{g,w,h}=setup(el('cvMix0'));const X1=w-8,y=(h-22)/2;base(g,X0,X1,y);txt(g,'混合波',4,y+5,ink);line(g,sig,X0,X1,y,(y-6)/S(),ink,2.2);xaxis(g,X0,X1,h-22)}
+  {const{g,w,h}=setup(el('cvTest'));const X1=w-8,lh=(h-26)/2,y1=lh*0.5,y2=lh*1.5,sc=(lh*0.44)/S();base(g,X0,X1,y1);base(g,X0,X1,y2);
+   txt(g,found.length?'殘差':'混合波',4,y1-4,found.length?css('--c2'):ink);
+   if(cur){txt(g,'測試波',4,y1+16,css('--test'),'left','700',13);}
+   let rm=0;for(let k=0;k<=400;k++)rm=Math.max(rm,Math.abs(sigR(SHOW*k/400)));const scR=found.length?(lh*0.4)/Math.max(rm,0.05):sc;
+   line(g,sigR,X0,X1,y1,scR,found.length?css('--c2'):ink,2);
+   if(cur){line(g,x=>Math.sin(2*Math.PI*x/cur),X0,X1,y1,lh*0.42,css('--test'),2);
+     txt(g,'相乘',4,y2+5,ink);const n=Math.round((X1-X0)*2),sc2=(lh*0.45)/S();
+     for(let k=0;k<n;k++){const x=SHOW*k/n,v=sigR(x)*Math.sin(2*Math.PI*x/cur),X=X0+(X1-X0)*k/n;
+       g.fillStyle=v>=0?css('--pos'):css('--neg');g.globalAlpha=0.65;g.fillRect(X,v>=0?y2-v*sc2:y2,(X1-X0)/n+0.6,Math.abs(v*sc2))}g.globalAlpha=1}
+   else txt(g,'點上面的數字，這裡會出現測試波和相乘結果',(X0+X1)/2,y2+5,css('--muted'),'center','400',14);
+   xaxis(g,X0,X1,h-22)}
+  if(SPEC&&!el('fftOut').hidden){const{g,w,h}=setup(el('cvFFT'));const X1=w-10,Y0=h-30,Yt=14,xm=13;const xl=l=>X0+(X1-X0)*l/xm;
+    const am=Math.max(...SPEC.A.slice(1))*1.15,ys=a=>Y0-(Y0-Yt)*a/am;
+    for(let l=0;l<=12;l+=1){g.strokeStyle=css('--grid');g.beginPath();g.moveTo(xl(l),Yt);g.lineTo(xl(l),Y0);g.stroke()}
+    g.strokeStyle=ink;g.lineWidth=1.5;g.beginPath();let st=false;
+    for(let k=SPEC.N/2-1;k>=1;k--){const l=SPEC.L/k;if(l>xm)break;if(l<0.4)continue;const X=xl(l),Y=ys(SPEC.A[k]);st?g.lineTo(X,Y):(g.moveTo(X,Y),st=true)}g.stroke();
+    for(let k=1;k<SPEC.N/2;k++){const a=SPEC.A[k],l=SPEC.L/k;if(a>0.05&&l<=xm){g.fillStyle=css('--found');g.beginPath();g.arc(xl(l),ys(a),5,0,7);g.fill();txt(g,'λ＝'+(+l.toFixed(2))+' mm',xl(l),ys(a)-10,css('--found'),'center','700',13)}}
+    g.strokeStyle=css('--line');g.beginPath();g.moveTo(X0,Y0);g.lineTo(X1,Y0);g.stroke();
+    g.fillStyle=css('--muted');g.font='12px '+css('--f-mono');g.textAlign='center';for(let l=0;l<=12;l+=2)g.fillText(l,xl(l),Y0+16);
+    g.textAlign='right';g.fillText('λ (mm)',X0-6,Y0+16);g.textAlign='left';g.fillText('振幅',4,Yt+4)}
+  if(XP.A&&!el('fftOut').hidden){
+   {const{g,w,h}=setup(el('cvSamp'));const X1=w-8,y=(h-24)/2,L=XP.L,xm=Math.max(L,24),sc=(y-6)/S(),xx=x=>X0+(X1-X0)*x/xm;
+    base(g,X0,X1,y);g.fillStyle=css('--chip');g.fillRect(xx(0),4,xx(L)-xx(0),h-30);
+    g.beginPath();for(let k=0;k<=1200;k++){const x=xm*k/1200,X=xx(x),Y=y-sig(x)*sc;k?g.lineTo(X,Y):g.moveTo(X,Y)}g.strokeStyle=css('--muted');g.lineWidth=1;g.stroke();
+    g.fillStyle=css('--accent');const st=Math.max(1,Math.ceil(XP.N/300));for(let n=0;n<XP.N;n+=st){const x=L*n/XP.N;g.beginPath();g.arc(xx(x),y-sig(x)*sc,XP.N<=64?3:1.6,0,7);g.fill()}
+    g.strokeStyle=css('--accent');g.lineWidth=2;g.beginPath();g.moveTo(xx(L),4);g.lineTo(xx(L),h-26);g.stroke();txt(g,'L ＝ '+L,xx(L)-4,16,css('--accent'),'right','700',12);
+    txt(g,'取樣',4,y+5,css('--accent'));g.fillStyle=css('--muted');g.font='12px '+css('--f-mono');g.textAlign='center';
+    const tk=xm>80?20:xm>40?10:4;for(let x=0;x<=xm;x+=tk)g.fillText(x,xx(x),h-8)}
+   {const{g,w,h}=setup(el('cvFFT2'));const X1=w-10,Y0=h-30,Yt=16,xm=Math.min(Math.max(13,W[0].T+2),Math.max(13,XP.L));const xl=l=>X0+(X1-X0)*l/xm;
+    const A=XP.A,am=Math.max(2.5,...A.slice(1))*1.1,ys=a=>Y0-(Y0-Yt)*a/am;
+    for(let l=0;l<=xm;l+=1){g.strokeStyle=css('--grid');g.beginPath();g.moveTo(xl(l),Yt);g.lineTo(xl(l),Y0);g.stroke()}
+    W.forEach((w_,i)=>{g.strokeStyle=css(i?'--c2':'--c1');g.setLineDash([4,4]);g.beginPath();g.moveTo(xl(w_.T),ys(AMP(w_.T)));g.lineTo(X1>xl(w_.T)?xl(w_.T)+0.01:0,ys(AMP(w_.T)));g.stroke();g.setLineDash([])});
+    for(let k=1;k<A.length;k++){const l=XP.L/k;if(l>xm||l<0.3)continue;g.strokeStyle=css('--accent');g.lineWidth=2;g.beginPath();g.moveTo(xl(l),Y0);g.lineTo(xl(l),ys(A[k]));g.stroke();
+      g.fillStyle=css('--accent');g.beginPath();g.arc(xl(l),ys(A[k]),2.5,0,7);g.fill()}
+    W.forEach((w_,i)=>{g.fillStyle=css(i?'--c2':'--c1');g.beginPath();g.moveTo(xl(w_.T),ys(AMP(w_.T))-2);g.lineTo(xl(w_.T)-6,ys(AMP(w_.T))-12);g.lineTo(xl(w_.T)+6,ys(AMP(w_.T))-12);g.fill()});
+    g.strokeStyle=css('--line');g.beginPath();g.moveTo(X0,Y0);g.lineTo(X1,Y0);g.stroke();
+    g.fillStyle=css('--muted');g.font='12px '+css('--f-mono');g.textAlign='center';const tk=xm>30?5:2;for(let l=0;l<=xm;l+=tk)g.fillText(l,xl(l),Y0+16);
+    g.textAlign='right';g.fillText('λ (mm)',X0-6,Y0+16);g.textAlign='left';g.fillText('振幅',4,Yt);
+    txt(g,'▼ 正確答案的位置和高度',X1,Yt,css('--muted'),'right','400',12)}}
+  if(!el('winSec').hidden&&!el('fftOut').hidden){const{g,w,h}=setup(el('cvWin'));const X1=w-8,lh=(h-28)/3;
+    const y0=lh*0.5;base(g,X0,X1,y0);txt(g,'混合',4,y0+5,ink);line(g,sig,X0,X1,y0,(lh*0.45)/S(),ink,2);
+    [[0,'波 1','--c1'],[1,'波 2','--c2']].forEach(([i,n,c])=>{const y=lh*(i+1.5);base(g,X0,X1,y);txt(g,n,4,y+5,css(c));
+      line(g,x=>AMP(W[i].T)*Math.sin(2*Math.PI*x/W[i].T),X0,X1,y,(lh*0.45)/3,css(c),2)});
+    txt(g,'＝',X0-30,lh+6,css('--muted'),'left','400',18);txt(g,'＋',X0-30,lh*2+6,css('--muted'),'left','400',18);xaxis(g,X0,X1,h-22)}
+}
+draw();
+let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(draw,80)});
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',draw);
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+document.fonts&&document.fonts.ready.then(draw);
+})();
+</script>
+
+</body></html>
