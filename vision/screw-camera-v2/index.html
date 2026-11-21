@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>手機螺絲辨識｜Roboflow 第二版</title>
+<!-- Roboflow 官方瀏覽器套件：模型在手機瀏覽器裡執行，載入後的全域變數名稱是 inferencejs -->
+<script src="https://cdn.jsdelivr.net/npm/inferencejs@1.3.0/dist/inference.js"></script>
+<style>
+  :root { --deep:#065A82; --warn:#E07A3F; --ink:#1F2A36; --bg:#F4F6F8; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Microsoft JhengHei","Noto Sans TC",sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--deep); color:#fff; padding:12px 16px; font-size:18px; font-weight:bold; }
+  .page-nav { display:flex; gap:18px; flex-wrap:wrap; margin-bottom:8px; font-size:14px; font-weight:500; }
+  .page-nav a { color:#fff; opacity:.92; text-decoration:none; }
+  .page-nav a:hover { text-decoration:underline; }
+  main { max-width:900px; margin:0 auto; padding:12px 16px; }
+  .card { background:#fff; border-radius:10px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  label { display:block; font-size:14px; margin:6px 0 2px; }
+  input[type=text] { width:100%; padding:8px; font-size:15px; border:1px solid #C8D0D8; border-radius:6px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px; }
+  button { padding:10px 16px; font-size:16px; border:0; border-radius:8px; background:var(--deep); color:#fff; }
+  button.alt { background:#6B7480; }
+  button:disabled { opacity:.5; }
+  #stage { position:relative; width:100%; background:#000; border-radius:10px; overflow:hidden; }
+  video, canvas { width:100%; display:block; }
+  canvas { position:absolute; left:0; top:0; }
+  #count { font-size:40px; font-weight:bold; color:var(--warn); }
+  #status { font-size:14px; color:#6B7480; }
+  .stat { font-size:15px; }
+</style>
+</head>
+<body>
+<header><nav class="page-nav"><a href="../../">← 回學習世界首頁</a><a href="../screw-camera/">開啟第一版（Teachable Machine）</a></nav>手機螺絲辨識｜Roboflow 第二版</header>
+<main>
+  <div class="card">
+    <label>模型 ID（模型頁上顯示，例如 six-ew8is/screw-and-leaf-detection-xxxx）</label>
+    <input id="modelId" type="text" placeholder="workspace/model-slug">
+    <label>或：專案代號＋版本（舊式模型才需要；有填模型 ID 就不用填）</label>
+    <div class="row">
+      <input id="project" type="text" placeholder="screw-and-leaf-detection" style="flex:3">
+      <input id="version" type="text" placeholder="版本，例如 1" style="flex:1">
+    </div>
+    <label>Publishable Key（Roboflow → Settings → API Keys，rf_ 開頭）</label>
+    <input id="key" type="text" placeholder="rf_xxxxxxxx">
+    <label>信心值門檻：<span id="thrV">0.50</span></label>
+    <input id="thr" type="range" min="0.05" max="0.95" step="0.05" value="0.5" style="width:100%">
+    <div class="row">
+      <button id="btnStart">開始辨識</button>
+      <button id="btnStop" class="alt" disabled>停止</button>
+      <span id="status">尚未載入模型</span>
+    </div>
+  </div>
+
+  <div id="stage"><video id="video" playsinline muted></video><canvas id="canvas"></canvas></div>
+
+  <div class="card row" style="justify-content:space-between">
+    <div>螺絲數量 <span id="count">0</span></div>
+    <div class="stat">每張推論 <b id="ms">—</b> ms　<b id="fps">—</b> FPS</div>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const video = $('video'), canvas = $('canvas'), ctx = canvas.getContext('2d');
+let engine = null, workerId = null, running = false, stream = null;
+
+// 記住上次填的設定（只存在這台手機的瀏覽器）
+const KEYS = ['modelId', 'project', 'version', 'key'];
+KEYS.forEach(k => { try { $(k).value = localStorage.getItem('screw_v2_' + k) || ''; } catch (e) {} });
+// 預設模型：Roboflow 訓練的 RF-DETR Nano（螺絲與葉子）
+if (!$('modelId').value) $('modelId').value = 'six-ew8is/screw-and-leaf-detection-2-rfdetr-nano-t1';
+const save = () => KEYS.forEach(k => { try { localStorage.setItem('screw_v2_' + k, $(k).value.trim()); } catch (e) {} });
+
+$('thr').oninput = () => $('thrV').textContent = Number($('thr').value).toFixed(2);
+
+async function start() {
+  const modelId = $('modelId').value.trim(), project = $('project').value.trim();
+  const version = parseInt($('version').value, 10), key = $('key').value.trim();
+  if (!key || (!modelId && !(project && version))) { $('status').textContent = '請填模型 ID（或專案＋版本）和 Publishable Key'; return; }
+  save();
+  $('btnStart').disabled = true;
+  try {
+    // 1. 開後鏡頭
+    $('status').textContent = '開啟相機中…';
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } }, audio: false });
+    video.srcObject = stream; await video.play();
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    // 2. 下載模型（第一次較久）
+    $('status').textContent = '下載模型中…';
+    engine = new inferencejs.InferenceEngine();
+    workerId = modelId ? await engine.startWorkerByModelId(modelId, key)
+                       : await engine.startWorker(project, version, key);
+    $('status').textContent = '辨識中';
+    running = true; $('btnStop').disabled = false;
+    loop();
+  } catch (e) {
+    $('status').textContent = '失敗：' + (e && e.message ? e.message : e);
+    console.error(e); stop();
+  }
+}
+
+async function loop() {
+  if (!running) return;
+  const t0 = performance.now();
+  const bmp = await createImageBitmap(video);
+  let preds = [];
+  try { preds = await engine.infer(workerId, bmp); } catch (e) { console.error(e); }
+  const ms = performance.now() - t0;
+  draw(preds);
+  $('ms').textContent = ms.toFixed(0);
+  $('fps').textContent = (1000 / ms).toFixed(1);
+  requestAnimationFrame(loop);
+}
+
+function draw(preds) {
+  const thr = Number($('thr').value);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  let n = 0;
+  ctx.lineWidth = Math.max(2, canvas.width / 300);
+  ctx.font = `${Math.max(14, canvas.width / 40)}px sans-serif`;
+  for (const p of preds || []) {
+    if (!p.bbox || (p.confidence ?? 0) < thr) continue;
+    // Roboflow 的 bbox：x、y 是框的中心，width、height 是寬高（像素）
+    const { x, y, width: w, height: h } = p.bbox;
+    const isScrew = /screw/i.test(p.class || '');
+    if (isScrew) n++;
+    ctx.strokeStyle = ctx.fillStyle = isScrew ? '#E07A3F' : '#1C7293';
+    ctx.strokeRect(x - w / 2, y - h / 2, w, h);
+    ctx.fillText(`${p.class} ${(p.confidence * 100).toFixed(0)}%`, x - w / 2, y - h / 2 - 4);
+  }
+  $('count').textContent = n;
+}
+
+async function stop() {
+  running = false;
+  if (engine && workerId != null) { try { await engine.stopWorker(workerId); } catch (e) {} }
+  workerId = null;
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  $('btnStart').disabled = false; $('btnStop').disabled = true;
+  if (!$('status').textContent.startsWith('失敗')) $('status').textContent = '已停止';
+}
+
+$('btnStart').onclick = start;
+$('btnStop').onclick = stop;
+</script>
+</body>
+</html>
