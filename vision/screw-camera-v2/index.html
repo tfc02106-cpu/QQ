@@ -47,11 +47,14 @@
     <input id="thr" type="range" min="0.05" max="0.95" step="0.05" value="0.5" style="width:100%">
     <div class="row">
       <button id="btnStart">開始辨識</button>
+      <button id="btnSound" type="button" class="alt">測試提示音</button>
       <button id="btnStop" class="alt" disabled>停止</button>
       <span id="status">尚未載入模型</span>
     </div>
   </div>
 
+  <span id="soundStatus" role="status"></span>
+  <audio id="alertTone" preload="auto" src="data:audio/wav;base64,UklGRmQGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YUAGAACAgYKDgn56eHl/h42Nh3xxbXF9jJeYjXtpYmh6kKGjlHtjV111k6qunX1dTFNvlbK5poBYQkdolbrFsIVVODxfk7/OuYpWNjdaj7zOvI9aNzZWirnOv5NfOTRShbXNwphjPDNOgLLNxJ1oPjNLe67Mx6FtQTJHdqrKyaZxRDJEcabJyqp2RzJBbaHHzK57SzM+aJ3EzbKATjM8Y5jCzbWFUjQ5X5O/zrmKVjY3Wo+8zryPWjc2Voq5zr+TXzk0UoW1zcKYYzwzToCyzcSdaD4zS3uuzMehbUEyR3aqysmmcUQyRHGmycqqdkcyQW2hx8yue0szPmidxM2ygE4zPGOYws21hVI0OV+Tv865ilY2N1qPvM68j1o3NlaKuc6/k185NFKFtc3CmGM8M06Ass3EnWg+M0t7rszHoW1BMkd2qsrJpnFEMkRxpsnKqnZHMkFtocfMrntLMz5oncTNsoBOMzxjmMLNtYVSNDlfk7/OuYpWNjdaj7zOvI9aNzZWirnOv5NfOTRShbXNwphjPDNOgLLNxJ1oPjNLe67Mx6FtQTJHdqrKyaZxRDJEcabJyqp2RzJBbaHHzK57SzM+aJ3EzbKATjM8Y5jCzbWFUjQ5X5O/zrmKVjY3Wo+8zryPWjc2Voq5zr+TXzk0UoW1zcKYYzwzToCyzcSdaD4zS3uuzMehbUEyR3aqysmmcUQyRHGmycqqdkcyQW2hx8yue0szPmidxM2ygE4zPGOYws21hVI0OV+Tv865ilY2N1qPvM68j1o3NlaKuc6/k185NFKFtc3CmGM8M06Ass3EnWg+M0t7rszHoW1BMkd2qsrJpnFEMkRxpsnKqnZHMkFtocfMrntLMz5oncTNsoBOMzxjmMLNtYVSNDlfk7/OuYpWNjdaj7zOvI9aNzZWirnOv5NfOTRShbXNwphjPDNOgLLNxJ1oPjNLe67Mx6FtQTJHdqrKyaZxRDJEcabJyqp2RzJBbaHHzK57SzM+aJ3EzbKATjM8Y5jCzbWFUjQ5X5O/zrmKVjY3Wo+8zryPWjc2Voq5zr+TXzk0UoW1zcKYYzwzToCyzcSdaD4zS3uuzMehbUEyR3aqysmmcUQyRHGmycqqdkcyQW2hx8yue0szPmidxM2ygE4zPGOYws21hVI0OV+Tv865ilY2N1qPvM68j1o3NlaKuc6/k185NFKFtc3CmGM8M06Ass3EnWg+M0t7rszHoW1BMkd2qsrJpnFEMkRxpsnKqnZHMkFtocfMrntLMz5oncTNsoBOMzxjmMLNtYVSNDlfk7/OuYpWNjdaj7zOvI9aNzZWirnOv5NfOTRShbXNwphjPDNOgLLNxJ1oPjNLe67Mx6FtQTJHdqrKyaZxRDJEcabJyqp2RzJBbaHHzK57SzM+aJ3EzbKATjM8Y5jCzbWFUjQ5X5O/zrmKVjY3Wo+8zryPWjc2Voq5zr+TXzk0UoW1zcKYYzwzToCyzcSdaD4zS3uuzMehbUEyR3aqysmmcUQyRHGmycqqdkcyQW2hx8yue0szPmidxM2ygE4zPGOYws21hVI0OV+Tv865ilY2N1qPvM68j1o3NlaKuc6/k185NFKFtc3CmGM8M06Ass3EnWg+M0t7rszHoW1BMkd2qsrJpnFEMkRxpsnKqnZHMkFtocfMrntLMz5oncTNsoBOMzxjmMLNtYVSNDlfk7/OuYpWNjdaj7zOvI9aNzZWirnOv5NfOTRShbXNwphjPDNOgLLNxJ1oPjNLe67Mx6FtQTJHdqrKyaZxRDJEcabJyqp2RzJBbaHHzK57SzM+aJ3EzbKATjM8Y5jCzbWFUjQ5X5O/zrmKVjY3Wo+8zryPWjc2Voq5zr+TXzk0UoW1zcKYYzwzToCyzcSdaD4zS3uuzMehbUEyR3aqysmmcUQyRHGmycqqdkcyQW2hx8yue0szPmidxM2ygE4zPGOYws21hVI0OV+Tv865ilY2N1qPvM68j1o3NlaKuc6/k185NFKFtc3CmGM8M06AscrCm2lDOU98qcK9nXBLP1F4obu5nXVTRlR1m7OznHlaTVh0lautm31iVVxzj6SnmYBoXGFzi5yhloJuY2Z0h5WakoNzamx2hI+TjoN4cXJ4gomMiYN8eHh8gISFg4F/f3+A"></audio>
   <div id="stage"><video id="video" playsinline muted></video><canvas id="canvas"></canvas></div>
 
   <div class="card row" style="justify-content:space-between">
@@ -65,37 +68,30 @@ const $ = id => document.getElementById(id);
 const video = $('video'), canvas = $('canvas'), ctx = canvas.getContext('2d');
 let engine = null, workerId = null, running = false, stream = null;
 
-let alertAudio;
+const alertTone = $('alertTone');
 let screwAboveThreshold = false;
 
-function enableAlertAudio() {
+function playAlert() {
   try {
-    const Audio = window.AudioContext || window.webkitAudioContext;
-    alertAudio ??= new Audio();
-    alertAudio.resume().catch(() => {});
-  } catch (error) { console.warn('無法啟用提示音', error); }
+    if (navigator.audioSession) navigator.audioSession.type = 'playback';
+  } catch (error) { console.warn(error); }
+  alertTone.currentTime = 0;
+  alertTone.play().then(() => {
+    $('soundStatus').textContent = '';
+  }).catch(error => {
+    if (error.name !== 'AbortError') $('soundStatus').textContent = '提示音未能播放，請點「測試提示音」重試。';
+  });
 }
 
 function updateAlert(predictions) {
   const detected = predictions.some(p =>
     p.bbox && /screw/i.test(p.class || '') && p.confidence > 0.80
   );
-  if (detected && !screwAboveThreshold && alertAudio?.state === 'running') {
-    const tone = alertAudio.createOscillator();
-    const volume = alertAudio.createGain();
-    const now = alertAudio.currentTime;
-    tone.frequency.value = 880;
-    volume.gain.setValueAtTime(0, now);
-    volume.gain.linearRampToValueAtTime(0.18, now + 0.01);
-    volume.gain.linearRampToValueAtTime(0, now + 0.15);
-    tone.connect(volume);
-    volume.connect(alertAudio.destination);
-    tone.onended = () => { tone.disconnect(); volume.disconnect(); };
-    tone.start(now);
-    tone.stop(now + 0.15);
-  }
+  if (detected && !screwAboveThreshold) playAlert();
   screwAboveThreshold = detected;
 }
+
+$('btnSound').onclick = playAlert;
 
 // 記住上次填的設定（只存在這台手機的瀏覽器）
 const KEYS = ['modelId', 'project', 'version', 'key'];
@@ -110,7 +106,7 @@ async function start() {
   const modelId = $('modelId').value.trim(), project = $('project').value.trim();
   const version = parseInt($('version').value, 10), key = $('key').value.trim();
   if (!key || (!modelId && !(project && version))) { $('status').textContent = '請填模型 ID（或專案＋版本）和 Publishable Key'; return; }
-  enableAlertAudio();
+  playAlert();
   save();
   $('btnStart').disabled = true;
   try {
