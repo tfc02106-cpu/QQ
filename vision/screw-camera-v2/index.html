@@ -65,6 +65,38 @@ const $ = id => document.getElementById(id);
 const video = $('video'), canvas = $('canvas'), ctx = canvas.getContext('2d');
 let engine = null, workerId = null, running = false, stream = null;
 
+let alertAudio;
+let screwAboveThreshold = false;
+
+function enableAlertAudio() {
+  try {
+    const Audio = window.AudioContext || window.webkitAudioContext;
+    alertAudio ??= new Audio();
+    alertAudio.resume().catch(() => {});
+  } catch (error) { console.warn('無法啟用提示音', error); }
+}
+
+function updateAlert(predictions) {
+  const detected = predictions.some(p =>
+    p.bbox && /screw/i.test(p.class || '') && p.confidence > 0.80
+  );
+  if (detected && !screwAboveThreshold && alertAudio?.state === 'running') {
+    const tone = alertAudio.createOscillator();
+    const volume = alertAudio.createGain();
+    const now = alertAudio.currentTime;
+    tone.frequency.value = 880;
+    volume.gain.setValueAtTime(0, now);
+    volume.gain.linearRampToValueAtTime(0.18, now + 0.01);
+    volume.gain.linearRampToValueAtTime(0, now + 0.15);
+    tone.connect(volume);
+    volume.connect(alertAudio.destination);
+    tone.onended = () => { tone.disconnect(); volume.disconnect(); };
+    tone.start(now);
+    tone.stop(now + 0.15);
+  }
+  screwAboveThreshold = detected;
+}
+
 // 記住上次填的設定（只存在這台手機的瀏覽器）
 const KEYS = ['modelId', 'project', 'version', 'key'];
 KEYS.forEach(k => { try { $(k).value = localStorage.getItem('screw_v2_' + k) || ''; } catch (e) {} });
@@ -78,6 +110,7 @@ async function start() {
   const modelId = $('modelId').value.trim(), project = $('project').value.trim();
   const version = parseInt($('version').value, 10), key = $('key').value.trim();
   if (!key || (!modelId && !(project && version))) { $('status').textContent = '請填模型 ID（或專案＋版本）和 Publishable Key'; return; }
+  enableAlertAudio();
   save();
   $('btnStart').disabled = true;
   try {
@@ -105,7 +138,10 @@ async function loop() {
   const t0 = performance.now();
   const bmp = await createImageBitmap(video);
   let preds = [];
-  try { preds = await engine.infer(workerId, bmp); } catch (e) { console.error(e); }
+  try {
+    preds = await engine.infer(workerId, bmp);
+    if (running) updateAlert(preds || []);
+  } catch (e) { console.error(e); }
   const ms = performance.now() - t0;
   draw(preds);
   $('ms').textContent = ms.toFixed(0);
@@ -134,6 +170,7 @@ function draw(preds) {
 
 async function stop() {
   running = false;
+  screwAboveThreshold = false;
   if (engine && workerId != null) { try { await engine.stopWorker(workerId); } catch (e) {} }
   workerId = null;
   if (stream) stream.getTracks().forEach(t => t.stop());
