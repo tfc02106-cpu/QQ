@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>國道三號 172K+400｜背景相減車流觀察</title>
+<title>國道三號 172K+400｜大型車背景相減與 FPS 實驗</title>
 <style>
 :root{
   --ink:#172b35;--muted:#647780;--deep:#123d50;--teal:#087f8c;
@@ -67,8 +67,8 @@ footer{max-width:1240px;margin:auto;padding:0 16px 30px;color:var(--muted);font-
     <a href="../../">← 回學習世界首頁</a>
     <a href="https://www.1968services.tw/cam/n3-n-172k+400" target="_blank" rel="noopener">開啟 1968 國道三號北上 172K+400 影像 ↗</a>
   </nav>
-  <h1>國道三號 172K+400｜背景相減車流觀察</h1>
-  <p>以固定道路攝影機畫面進行灰階背景相減、二值化、形態學去雜訊及連通區域分析。先觀察移動物件，再以計數線估算通過車流。</p>
+  <h1>國道三號 172K+400｜貨車／大客車背景相減實驗</h1>
+  <p>以固定道路影像進行背景相減，透過移動區域尺寸篩選大型車候選，並讓學生調整演算法取樣 FPS，觀察影格間隔對追蹤與通過計數的影響。</p>
 </header>
 
 <main>
@@ -94,11 +94,15 @@ footer{max-width:1240px;margin:auto;padding:0 16px 30px;color:var(--muted);font-
         <h2 style="margin:0">② 即時影像與背景相減結果</h2>
         <div class="row">
           <select id="viewMode" aria-label="顯示模式">
-            <option value="box">原圖＋偵測框</option>
+            <option value="box">原圖＋大型車候選框</option>
             <option value="bg">背景模型</option>
             <option value="diff" selected>背景相減差值</option>
             <option value="mask">二值遮罩（形態學後）</option>
             <option value="overlay">原圖＋遮罩疊圖</option>
+          </select>
+          <select id="vehicleMode" aria-label="偵測目標">
+            <option value="heavy" selected>貨車／大客車候選</option>
+            <option value="all">全部移動區域（比較）</option>
           </select>
           <button id="btnBg" class="warn" disabled>③ 拍攝背景</button>
           <button id="btnSave" class="secondary" disabled>儲存畫面</button>
@@ -114,16 +118,17 @@ footer{max-width:1240px;margin:auto;padding:0 16px 30px;color:var(--muted);font-
         <button id="btnClearLine" class="secondary" disabled>清除計數線</button>
         <button id="btnResetCount" class="secondary" disabled>重設通過數</button>
       </div>
-      <p class="small">ROI：在畫面拖曳框出道路區域，排除護欄、天空、時間戳與其他固定背景。計數線：按下設定後，在畫面點擊兩次建立計數線；車輛中心穿越此線時才累計。</p>
+      <p class="small">ROI：建議只框選同一行車方向的道路。計數線：在車道上點擊兩個端點，車輛候選中心穿越計數線時累計。綠框為大型車候選，不代表已完成貨車／大客車語意分類。</p>
     </section>
 
     <aside>
       <section class="card">
         <h2>③ 即時統計</h2>
         <div class="stats">
-          <div class="stat"><span>移動物件候選數</span><strong id="candidateCount">0</strong><em>目前影格</em></div>
-          <div class="stat"><span>通過線累計</span><strong id="totalCount">0</strong><em>追蹤估計</em></div>
-          <div class="stat"><span>處理 FPS</span><strong id="fps">—</strong><em>演算法速度</em></div>
+          <div class="stat"><span>大型車候選數</span><strong id="candidateCount">0</strong><em>全部移動區域 <b id="allBlobCount">0</b></em></div>
+          <div class="stat"><span>通過線累計</span><strong id="totalCount">0</strong><em>大型車候選追蹤估計</em></div>
+          <div class="stat"><span>實際處理 FPS</span><strong id="fps">—</strong><em>每秒實際分析影格數</em></div>
+          <div class="stat"><span>目標 FPS</span><strong id="targetFpsStat">10</strong><em>演算法取樣上限</em></div>
           <div class="stat"><span>A → B</span><strong id="countAB">0</strong><em>方向一</em></div>
           <div class="stat"><span>B → A</span><strong id="countBA">0</strong><em>方向二</em></div>
           <div class="stat"><span>平均車流</span><strong id="flowRate">0</strong><em>輛／分鐘（估計）</em></div>
@@ -136,7 +141,12 @@ footer{max-width:1240px;margin:auto;padding:0 16px 30px;color:var(--muted);font-
       </section>
 
       <section class="card">
-        <h2>④ 影像處理參數</h2>
+        <h2>④ 影像處理參數與 FPS 實驗</h2>
+        <label class="control"><span class="control-line">演算法取樣 FPS <b id="targetFpsValue">10</b></span></label>
+        <input id="fpsTarget" type="range" min="1" max="30" step="1" value="10">
+        <div class="small">1 FPS：每秒只分析1張；30 FPS：每秒最多分析30張。降低 FPS 會拉大影格間隔，車輛可能跨過計數線而漏計；實際 FPS 仍受來源影像更新率與電腦效能限制。</div>
+        <label class="control"><span class="control-line">大型車最小外接框面積 <b id="largeAreaVal">1500</b> px²</span></label>
+        <input id="largeArea" type="range" min="200" max="8000" step="100" value="1500">
         <label class="control"><span class="control-line">差值門檻 T <b id="tVal">28</b></span></label>
         <input id="threshold" type="range" min="5" max="100" step="1" value="28">
         <label class="control"><span class="control-line">形態學核心 k <b id="kVal">3</b></span></label>
@@ -150,7 +160,7 @@ footer{max-width:1240px;margin:auto;padding:0 16px 30px;color:var(--muted);font-
         <label class="checkrow"><input id="adaptive" type="checkbox"> 緩慢更新背景（適應光線變化）</label>
         <label class="control"><span class="control-line">背景更新率 α <b id="alphaVal">0.005</b></span></label>
         <input id="alpha" type="range" min="0.001" max="0.030" step="0.001" value="0.005">
-        <div class="note" style="margin-top:12px">先拍攝沒有車輛的背景。T 太低會把陰影、壓縮雜訊當成物件；T 太高則可能漏掉顏色接近路面的車輛。建議先觀察差值圖，再調整門檻與最小面積。</div>
+        <div class="note" style="margin-top:12px">大型車篩選依連通區域外接框面積、長寬比與畫面透視位置估計；遠處車輛的門檻會較低，近處門檻較高。此法適合教學觀察，不等同 YOLO 車種辨識。FPS 實驗建議依序比較 1、5、10、15、30 FPS，記錄實際 FPS、每影格耗時及通過計數差異。</div>
       </section>
 
       <section class="card">
@@ -167,9 +177,9 @@ footer{max-width:1240px;margin:auto;padding:0 16px 30px;color:var(--muted);font-
   </div>
 
   <section class="card">
-    <h2>使用與判讀注意事項</h2>
+    <h2>大型車判讀與 FPS 教學注意事項</h2>
     <div class="small">
-      1. 背景相減得到的是「移動或亮度改變的區域」，不會自動保證每個連通區域就是一輛車。<br>
+      1. 本版先用背景相減找移動區域，再依外接框面積與透視位置篩選「貨車／大客車候選」；這是尺寸啟發式，不是車種 AI 分類。<br>
       2. 兩輛車靠得太近可能合併成一個連通區域；同一輛車也可能因陰影或車窗反光被分割成多個區域。<br>
       3. 「移動物件候選數」是當前影格的連通區域數；「通過線累計」則是簡易質心追蹤後的估計值，兩者意義不同。<br>
       4. 固定攝影機、固定視角與穩定光線較適合背景相減；若畫面有鏡頭移動、雨滴、夜間車燈或大幅曝光變化，需重新拍背景或調整門檻。<br>
@@ -198,6 +208,7 @@ let roi=null,roiMode=false,lineMode=false,linePoints=[],countLine=null;
 let frameNo=0,tracks=[],nextTrackId=1;
 let countAB=0,countBA=0,sessionStart=0,history=[];
 let lastFrameImage=null;
+let lastProcessAt=0,lastSourceTime=-1,actualFps=0;
 
 function setStatus(message,kind=''){
   $('status').textContent=message;
@@ -221,6 +232,7 @@ function setDimensions(){
   W=targetW; H=Math.max(1,Math.round(targetW*vh/vw));
   work.width=W;work.height=H;canvas.width=W;canvas.height=H;
   bg=null;roi=null;countLine=null;linePoints=[];tracks=[];
+  lastProcessAt=0;lastSourceTime=-1;actualFps=0;
   $('roiState').textContent='ROI：全畫面';
   $('lineState').textContent='計數線：未設定';
   setStatus('影像尺寸已更新，請重新框選道路 ROI 並拍攝背景。','warn');
@@ -251,7 +263,7 @@ async function startScreenCapture(){
       else video.onloadedmetadata=resolve;
     });
     setDimensions();
-    running=true;paused=false;sessionStart=performance.now();frameNo=0;tracks=[];
+    running=true;paused=false;sessionStart=performance.now();frameNo=0;tracks=[];lastProcessAt=0;lastSourceTime=-1;actualFps=0;
     setButtons(true);$('btnPause').textContent='暫停';
     stream.getVideoTracks()[0].addEventListener('ended',stopSource);
     setStatus('已取得分頁影像。請先框選道路 ROI，再按「拍攝背景」。','good');
@@ -267,7 +279,7 @@ async function loadVideo(file){
   video.srcObject=null;video.src=url;video.loop=true;video.muted=true;
   try{
     await video.play();
-    setDimensions();running=true;sessionStart=performance.now();frameNo=0;tracks=[];
+    setDimensions();running=true;sessionStart=performance.now();frameNo=0;tracks=[];lastProcessAt=0;lastSourceTime=-1;actualFps=0;
     setButtons(true);
     setStatus('已載入本機影片。請框選道路 ROI，再拍攝背景。','good');
     loop();
@@ -329,6 +341,24 @@ function components(mask,minArea,maxArea){
     }
   }
   return blobs;
+}
+function filterLargeVehicleCandidates(blobs){
+  // 大型車尺寸篩選：以框面積作主條件，並依畫面上下位置做簡易透視補償。
+  // 畫面上方遠處門檻較低；下方近處門檻較高。此為教學用候選篩選，不是車種分類器。
+  const baseArea=Number($('largeArea').value);
+  const top=roi?roi.y:0;
+  const bottom=roi?roi.y+roi.h:H;
+  const span=Math.max(1,bottom-top);
+  return blobs.filter(b=>{
+    const yRatio=clamp((b.cy-top)/span,0,1);
+    const perspectiveFactor=0.22+0.78*yRatio;
+    const minBoxArea=baseArea*perspectiveFactor;
+    const boxArea=b.w*b.h;
+    const aspect=b.w/Math.max(1,b.h);
+    const fill=b.area/Math.max(1,boxArea);
+    return boxArea>=minBoxArea && b.w>=8 && b.h>=6 &&
+      aspect>=0.50 && aspect<=5.5 && fill>=0.07;
+  });
 }
 function inROI(x,y){
   if(!roi)return true;
@@ -398,7 +428,8 @@ function drawOverlay(blobs){
     ctx.strokeStyle='#42f58d';ctx.lineWidth=Math.max(2,W/360);
     ctx.strokeRect(b.x,b.y,b.w,b.h);
     ctx.fillStyle='#42f58d';ctx.font=`bold ${Math.max(12,W/48)}px sans-serif`;
-    ctx.fillText('OBJ '+(i+1),b.x,Math.max(14,b.y-4));
+    const tag=$('vehicleMode').value==='heavy'?'LV ':'OBJ ';
+    ctx.fillText(tag+(i+1),b.x,Math.max(14,b.y-4));
   });
   ctx.restore();
 }
@@ -436,6 +467,19 @@ function loop(){
     wctx.drawImage(video,0,0,W,H);ctx.drawImage(work,0,0);
     raf=requestAnimationFrame(loop);return;
   }
+  const now=performance.now();
+  const targetFps=Number($('fpsTarget').value);
+  const minInterval=1000/Math.max(1,targetFps);
+  // 避免同一來源影格重複分析；同時依目標 FPS 主動跳過部分影格。
+  if(lastProcessAt && (now-lastProcessAt)<minInterval){
+    raf=requestAnimationFrame(loop);return;
+  }
+  const sourceTime=video.currentTime;
+  if(lastSourceTime>=0 && sourceTime<=lastSourceTime+0.0001){
+    raf=requestAnimationFrame(loop);return;
+  }
+  const frameIntervalMs=lastProcessAt?now-lastProcessAt:minInterval;
+  lastProcessAt=now;lastSourceTime=sourceTime;
   const total0=performance.now();
   const cur=grabGray();const t1=performance.now();
   const T=Number($('threshold').value),k=Number($('kernel').value);
@@ -453,15 +497,22 @@ function loop(){
   const t2=performance.now();
   const mask=k>1?morph(morph(raw,k,true),k,false):raw;
   const t3=performance.now();
-  const blobs=components(mask,minA,maxA);
+  const allBlobs=components(mask,minA,maxA);
+  const blobs=$('vehicleMode').value==='heavy'
+    ? filterLargeVehicleCandidates(allBlobs)
+    : allBlobs;
   updateTracks(blobs);
   const t4=performance.now();
   render($('viewMode').value,diff,mask,blobs);
   const total=t4-total0;
+  const instantaneousFps=frameIntervalMs>0?1000/frameIntervalMs:0;
+  actualFps=actualFps>0?(0.70*actualFps+0.30*instantaneousFps):instantaneousFps;
   $('candidateCount').textContent=blobs.length;
+  $('allBlobCount').textContent=allBlobs.length;
   $('totalCount').textContent=countAB+countBA;
   $('countAB').textContent=countAB;$('countBA').textContent=countBA;
-  $('fps').textContent=total>0?(1000/total).toFixed(1):'—';
+  $('fps').textContent=actualFps>0?actualFps.toFixed(1):'—';
+  $('targetFpsStat').textContent=targetFps.toFixed(0);
   const elapsed=Math.max(1,(performance.now()-sessionStart)/60000);
   $('flowRate').textContent=((countAB+countBA)/elapsed).toFixed(1);
   $('timeGray').textContent=(t1-total0).toFixed(1)+' ms';
@@ -497,6 +548,7 @@ async function captureBackground(){
     model[i]=values[4];
   }
   bg=model;tracks=[];frameNo=0;sessionStart=performance.now();
+  lastProcessAt=0;lastSourceTime=-1;actualFps=0;
   countAB=0;countBA=0;nextTrackId=1;history=[];
   setStatus('背景模型已建立（9張時間中值）。現在可切換觀察背景、差值與二值遮罩；若道路持續壅塞，建議稍後重拍以降低車輛殘影。','good');
 }
@@ -554,9 +606,21 @@ $('btnCsv').onclick=()=>{
   const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='traffic_count_log.csv';a.click();URL.revokeObjectURL(url);
 };
 $('viewMode').onchange=()=>{};
-[['threshold','tVal'],['kernel','kVal'],['minArea','areaVal'],['maxArea','maxAreaVal'],['procWidth','widthVal'],['alpha','alphaVal']].forEach(([a,b])=>{
+[['threshold','tVal'],['kernel','kVal'],['minArea','areaVal'],['maxArea','maxAreaVal'],['procWidth','widthVal'],['alpha','alphaVal'],['largeArea','largeAreaVal']].forEach(([a,b])=>{
   $(a).oninput=()=>{$(b).textContent=$(a).value;if(a==='procWidth'&&running){setDimensions();}};
 });
+$('fpsTarget').oninput=()=>{
+  $('targetFpsValue').textContent=$('fpsTarget').value;
+  $('targetFpsStat').textContent=$('fpsTarget').value;
+  // 變更目標 FPS 後重新計算實際取樣率的平滑值。
+  lastProcessAt=0;actualFps=0;
+};
+$('vehicleMode').onchange=()=>{
+  tracks=[];
+  setStatus($('vehicleMode').value==='heavy'
+    ?'已切換為貨車／大客車候選篩選（依尺寸與透視位置估計）。'
+    :'已切換為全部移動區域，方便比較尺寸篩選前後差異。','good');
+};
 window.addEventListener('pagehide',stopSource);
 })();
 </script>
