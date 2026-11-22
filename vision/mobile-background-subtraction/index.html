@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>手機背景相減｜即時背景差分實驗</title>
+<!-- 不用任何外部套件：相減、門檻、斷開、連通區域都在這個檔案裡用 JavaScript 寫出來 -->
+<style>
+  :root { --deep:#065A82; --warn:#E07A3F; --ink:#1F2A36; --bg:#F4F6F8; --grey:#6B7480; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Microsoft JhengHei","Noto Sans TC",sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--deep); color:#fff; padding:12px 16px; font-size:18px; font-weight:bold; }
+  .page-nav { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:8px; font-size:14px; font-weight:500; }
+  .page-nav a { color:#fff; text-decoration:none; opacity:.92; }
+  .page-nav a:hover { text-decoration:underline; }
+  main { max-width:900px; margin:0 auto; padding:12px 16px; }
+  .card { background:#fff; border-radius:10px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  button { padding:10px 14px; font-size:16px; border:0; border-radius:8px; background:var(--deep); color:#fff; }
+  button.alt { background:var(--grey); }
+  button.hot { background:var(--warn); }
+  button:disabled { opacity:.45; }
+  label { display:block; font-size:15px; margin-top:8px; }
+  input[type=range] { width:100%; }
+  select { font-size:15px; padding:6px; }
+  canvas { width:100%; display:block; background:#000; border-radius:10px; }
+  #count { font-size:40px; font-weight:bold; color:var(--warn); }
+  #status { font-size:14px; color:var(--grey); }
+  table { border-collapse:collapse; font-size:14px; width:100%; }
+  td { padding:2px 6px; border-bottom:1px solid #E3E8ED; }
+  td:last-child { text-align:right; font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+<header><nav class="page-nav"><a href="../../">← 回學習世界首頁</a></nav>手機背景相減計數</header>
+<main>
+  <div class="card">
+    <div class="row">
+      <button id="btnCam">① 開啟後鏡頭</button>
+      <button id="btnBg" class="hot" disabled>② 拍背景</button>
+      <button id="btnPause" class="alt" disabled>暫停</button>
+      <button id="btnSave" class="alt" disabled>存截圖</button>
+    </div>
+    <p id="status">先把手機固定好，再按「開啟後鏡頭」。</p>
+  </div>
+
+  <canvas id="view"></canvas>
+
+  <div class="card row" style="justify-content:space-between;margin-top:12px">
+    <div>物件數量 <span id="count">0</span></div>
+    <div>顯示
+      <select id="mode">
+        <option value="box">原圖＋框</option>
+        <option value="diff">相減結果</option>
+        <option value="mask">二值圖（斷開後）</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <label>門檻 T（相減後差多少才算物件）：<b id="tV">30</b></label>
+    <input id="t" type="range" min="5" max="120" step="1" value="30">
+    <label>斷開大小 k（去掉小雜點，1＝不做）：<b id="kV">3</b></label>
+    <input id="k" type="range" min="1" max="9" step="2" value="3">
+    <label>最小面積（像素，小於這個不算）：<b id="aV">40</b></label>
+    <input id="a" type="range" min="0" max="500" step="10" value="40">
+    <label>處理寬度（像素，越小越快）：<b id="wV">320</b></label>
+    <input id="w" type="range" min="160" max="640" step="80" value="320">
+  </div>
+
+  <div class="card">
+    <table>
+      <tr><td>① 轉灰階</td><td id="t1">—</td></tr>
+      <tr><td>② 相減＋門檻</td><td id="t2">—</td></tr>
+      <tr><td>③ 斷開</td><td id="t3">—</td></tr>
+      <tr><td>④ 連通區域</td><td id="t4">—</td></tr>
+      <tr><td><b>每張合計</b></td><td><b id="tt">—</b></td></tr>
+      <tr><td><b>FPS</b></td><td><b id="fps">—</b></td></tr>
+    </table>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const video = document.createElement('video');
+video.playsInline = true; video.muted = true;
+const view = $('view'), vctx = view.getContext('2d');
+const work = document.createElement('canvas');              // 縮小後做運算用的畫布
+const wctx = work.getContext('2d', { willReadFrequently: true });
+
+let W = 0, H = 0;          // 處理用的寬、高
+let bg = null;             // 背景灰階影像（Float32Array）
+let running = false, paused = false, stream = null;
+
+// 滑桿數值顯示
+[['t','tV'],['k','kV'],['a','aV'],['w','wV']].forEach(([s, v]) =>
+  $(s).oninput = () => { $(v).textContent = $(s).value; if (s === 'w') resize(); });
+
+function resize() {
+  if (!video.videoWidth) return;
+  W = Number($('w').value);
+  H = Math.round(W * video.videoHeight / video.videoWidth);
+  work.width = W; work.height = H;
+  view.width = W; view.height = H;
+  bg = null;                                       // 解析度改了，背景要重拍
+  $('btnBg').textContent = '② 拍背景';
+  $('status').textContent = '處理寬度改變，請重拍背景。';
+}
+
+// 讀一張畫面，轉成灰階：Y = 0.299R + 0.587G + 0.114B
+function grabGray() {
+  wctx.drawImage(video, 0, 0, W, H);
+  const d = wctx.getImageData(0, 0, W, H).data;
+  const g = new Float32Array(W * H);
+  for (let i = 0, j = 0; j < g.length; i += 4, j++) g[j] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+  return g;
+}
+
+// ③ 形態學：侵蝕（視窗內全是 1 才留 1）、膨脹（視窗內有 1 就變 1）
+// 方形 k×k 視窗拆成「先水平、再垂直」兩次，速度比較快
+function morph(src, k, isErode) {
+  const r = (k - 1) >> 1, tmp = new Uint8Array(W * H), out = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    let v = isErode ? 1 : 0;
+    for (let dx = -r; dx <= r; dx++) {
+      const xx = x + dx, p = (xx < 0 || xx >= W) ? 0 : src[y * W + xx];
+      if (isErode && !p) { v = 0; break; }
+      if (!isErode && p) { v = 1; break; }
+    }
+    tmp[y * W + x] = v;
+  }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    let v = isErode ? 1 : 0;
+    for (let dy = -r; dy <= r; dy++) {
+      const yy = y + dy, p = (yy < 0 || yy >= H) ? 0 : tmp[yy * W + x];
+      if (isErode && !p) { v = 0; break; }
+      if (!isErode && p) { v = 1; break; }
+    }
+    out[y * W + x] = v;
+  }
+  return out;
+}
+
+// ④ 連通區域（8 連通）：從一個白點出發，把連在一起的白點都標成同一個編號
+function components(mask, amin) {
+  const lab = new Int32Array(W * H), stack = new Int32Array(W * H), blobs = [];
+  let id = 0;
+  for (let s = 0; s < W * H; s++) {
+    if (!mask[s] || lab[s]) continue;
+    id++;
+    let top = 0, area = 0, x0 = W, y0 = H, x1 = 0, y1 = 0;
+    stack[top++] = s; lab[s] = id;
+    while (top) {
+      const p = stack[--top], px = p % W, py = (p / W) | 0;
+      area++;
+      if (px < x0) x0 = px; if (px > x1) x1 = px;
+      if (py < y0) y0 = py; if (py > y1) y1 = py;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = px + dx, ny = py + dy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const q = ny * W + nx;
+        if (mask[q] && !lab[q]) { lab[q] = id; stack[top++] = q; }
+      }
+    }
+    if (area >= amin) blobs.push({ x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1, area });
+  }
+  return blobs;
+}
+
+function frame() {
+  if (!running) return;
+  if (paused || !bg) {
+    if (!bg) wctx.drawImage(video, 0, 0, W, H), vctx.drawImage(work, 0, 0);
+    requestAnimationFrame(frame); return;
+  }
+  const T = Number($('t').value), k = Number($('k').value), amin = Number($('a').value);
+  const t0 = performance.now();
+  const cur = grabGray();                                         // ① 轉灰階
+  const t1 = performance.now();
+  const diff = new Uint8ClampedArray(W * H), raw = new Uint8Array(W * H);
+  for (let i = 0; i < raw.length; i++) {                          // ② 相減＋門檻
+    const d = Math.abs(cur[i] - bg[i]);
+    diff[i] = d; raw[i] = d > T ? 1 : 0;
+  }
+  const t2 = performance.now();
+  const mask = k > 1 ? morph(morph(raw, k, true), k, false) : raw; // ③ 斷開＝先侵蝕再膨脹
+  const t3 = performance.now();
+  const blobs = components(mask, amin);                           // ④ 連通區域
+  const t4 = performance.now();
+
+  draw($('mode').value, diff, mask, blobs);
+  const tot = t4 - t0;
+  $('t1').textContent = (t1 - t0).toFixed(1) + ' ms';
+  $('t2').textContent = (t2 - t1).toFixed(1) + ' ms';
+  $('t3').textContent = (t3 - t2).toFixed(1) + ' ms';
+  $('t4').textContent = (t4 - t3).toFixed(1) + ' ms';
+  $('tt').textContent = tot.toFixed(1) + ' ms';
+  $('fps').textContent = (1000 / tot).toFixed(1);
+  $('count').textContent = blobs.length;
+  requestAnimationFrame(frame);
+}
+
+function draw(mode, diff, mask, blobs) {
+  if (mode === 'box') {
+    vctx.drawImage(work, 0, 0);
+  } else {
+    const img = vctx.createImageData(W, H);
+    for (let i = 0, j = 0; j < W * H; i += 4, j++) {
+      const v = mode === 'diff' ? Math.min(255, diff[j] * 3) : mask[j] * 255;   // 相減結果放大 3 倍比較看得到
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255;
+    }
+    vctx.putImageData(img, 0, 0);
+  }
+  vctx.lineWidth = Math.max(1.5, W / 200);
+  vctx.strokeStyle = vctx.fillStyle = '#E07A3F';
+  vctx.font = `${Math.max(10, W / 30)}px sans-serif`;
+  blobs.forEach((b, i) => {
+    vctx.strokeRect(b.x, b.y, b.w, b.h);
+    vctx.fillText(String(i + 1), b.x, Math.max(10, b.y - 2));
+  });
+}
+
+$('btnCam').onclick = async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 } }, audio: false });
+    video.srcObject = stream; await video.play();
+    resize();
+    running = true;
+    $('btnCam').disabled = true; $('btnBg').disabled = false; $('btnPause').disabled = false; $('btnSave').disabled = false;
+    $('status').textContent = '畫面裡先不要放物件，按「拍背景」。';
+    frame();
+  } catch (e) {
+    $('status').textContent = '無法開啟相機：' + (e && e.message ? e.message : e) + '（請用 https 網址開啟，並允許使用相機）';
+  }
+};
+
+// 拍背景：連續取 5 張平均，減少雜訊
+$('btnBg').onclick = async () => {
+  $('status').textContent = '拍背景中，手機不要動…';
+  const sum = new Float32Array(W * H);
+  for (let n = 0; n < 5; n++) {
+    const g = grabGray();
+    for (let i = 0; i < sum.length; i++) sum[i] += g[i] / 5;
+    await new Promise(r => setTimeout(r, 60));
+  }
+  bg = sum;
+  $('btnBg').textContent = '② 重拍背景';
+  $('status').textContent = '背景已存。放上物件，調整門檻 T、斷開 k、最小面積，直到數量正確。';
+};
+
+$('btnPause').onclick = () => {
+  paused = !paused;
+  $('btnPause').textContent = paused ? '繼續' : '暫停';
+};
+
+$('btnSave').onclick = () => {
+  const a = document.createElement('a');
+  const s = `T${$('t').value}_k${$('k').value}_A${$('a').value}_n${$('count').textContent}`;
+  a.download = `背景相減_${s}.png`;
+  a.href = view.toDataURL('image/png');
+  a.click();
+};
+
+window.addEventListener('pagehide', () => { if (stream) stream.getTracks().forEach(t => t.stop()); });
+</script>
+</body>
+</html>
