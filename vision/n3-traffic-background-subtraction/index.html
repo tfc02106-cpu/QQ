@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>國道三號 172K+400｜背景相減車流觀察</title>
+<style>
+:root{
+  --ink:#172b35;--muted:#647780;--deep:#123d50;--teal:#087f8c;
+  --line:#d9e3e8;--paper:#f3f7f8;--panel:#fff;--green:#17834b;
+  --red:#c53c3c;--amber:#c77b19;--blue:#2469a8;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,"Microsoft JhengHei","Noto Sans TC",sans-serif}
+header{background:linear-gradient(110deg,#103b50,#087f8c);color:white;padding:16px max(18px,calc((100vw - 1240px)/2))}
+nav{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:12px;font-size:13px}
+nav a{color:#e9fbff;text-decoration:none}
+nav a:hover{text-decoration:underline}
+h1{font-size:clamp(21px,3vw,30px);margin:0 0 7px}
+header p{margin:0;color:#d8edf1;font-size:13px;line-height:1.7}
+main{max-width:1240px;margin:18px auto 48px;padding:0 16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px;margin-bottom:14px;box-shadow:0 3px 14px #153c4b08}
+.card h2{font-size:17px;margin:0 0 12px}
+.card h3{font-size:14px;margin:0 0 8px}
+.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+button,.file-label{border:1px solid #0e7180;background:var(--teal);color:#fff;border-radius:9px;padding:10px 13px;font:600 14px inherit;cursor:pointer}
+button:hover,.file-label:hover{filter:brightness(.95)}
+button.secondary,.file-label.secondary{background:#eef4f6;color:#214653;border-color:#c8d8df}
+button.warn{background:#b76b18;border-color:#a35d12}
+button.danger{background:#a63b3b;border-color:#943131}
+button:disabled{opacity:.45;cursor:not-allowed}
+.file-label input{display:none}
+.small{font-size:12px;color:var(--muted);line-height:1.65}
+.status{padding:10px 12px;border-radius:9px;background:#eef5f7;color:#31515c;font-size:13px;line-height:1.6;margin-top:10px}
+.status.good{background:#e6f6ed;color:#17653d}
+.status.warn{background:#fff4df;color:#875510}
+.status.bad{background:#fdeaea;color:#9b2e2e}
+.layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,.8fr);gap:14px;align-items:start}
+canvas{display:block;width:100%;height:auto;max-height:680px;object-fit:contain;background:#111820;border-radius:10px;touch-action:crosshair}
+.canvas-wrap{position:relative}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.stat{background:#f3f7f8;border:1px solid #e0e9ed;border-radius:10px;padding:10px}
+.stat span{display:block;color:var(--muted);font-size:11px;margin-bottom:4px}
+.stat strong{font-size:24px;font-variant-numeric:tabular-nums}
+.stat em{font-size:11px;color:var(--muted);font-style:normal}
+label.control{display:block;font-size:13px;margin:11px 0 5px}
+input[type=range]{width:100%;accent-color:var(--teal)}
+input[type=number]{width:100%;border:1px solid #cad9df;border-radius:8px;padding:8px;font:inherit}
+select{border:1px solid #cad9df;border-radius:8px;padding:8px;background:white;font:inherit}
+.control-line{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px}
+.control-line b{font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;width:100%;font-size:13px}
+td{padding:7px 4px;border-bottom:1px solid #e7edef}
+td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;border-radius:99px;padding:4px 8px;background:#eaf2f5;color:#31525d;font-size:11px;font-weight:700}
+.note{border-left:4px solid #d49a3e;background:#fff8e9;padding:10px 12px;font-size:12px;color:#6d531f;line-height:1.7;border-radius:4px}
+.checkrow{display:flex;align-items:center;gap:8px;font-size:13px;margin-top:9px}
+.checkrow input{accent-color:var(--teal)}
+footer{max-width:1240px;margin:auto;padding:0 16px 30px;color:var(--muted);font-size:11px}
+@media(max-width:850px){.layout{grid-template-columns:1fr}.stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:520px){main{padding:0 10px}.card{padding:12px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stat strong{font-size:21px}button,.file-label{font-size:13px;padding:9px 10px}}
+</style>
+</head>
+<body>
+<header>
+  <nav>
+    <a href="../../">← 回學習世界首頁</a>
+    <a href="https://www.1968services.tw/cam/n3-n-172k+400" target="_blank" rel="noopener">開啟 1968 國道三號北上 172K+400 影像 ↗</a>
+  </nav>
+  <h1>國道三號 172K+400｜背景相減車流觀察</h1>
+  <p>以固定道路攝影機畫面進行灰階背景相減、二值化、形態學去雜訊及連通區域分析。先觀察移動物件，再以計數線估算通過車流。</p>
+</header>
+
+<main>
+  <section class="card">
+    <h2>① 影像來源</h2>
+    <div class="row">
+      <a class="file-label" href="https://www.1968services.tw/cam/n3-n-172k+400" target="_blank" rel="noopener" style="text-decoration:none">開啟 1968 即時影像 ↗</a>
+      <button id="btnCapture">② 擷取瀏覽器分頁／螢幕</button>
+      <button id="btnStop" class="secondary" disabled>停止擷取</button>
+      <label class="file-label secondary">載入本機影片<input id="videoFile" type="file" accept="video/*"></label>
+      <button id="btnPause" class="secondary" disabled>暫停</button>
+    </div>
+    <div class="small" style="margin-top:9px">
+      建議流程：先在另一個瀏覽器分頁開啟 1968 影像，再回到本頁按「擷取瀏覽器分頁／螢幕」，於 Chrome 分享視窗選擇 1968 分頁。若無法擷取，可載入已下載的道路影片。
+      本頁透過螢幕擷取取得畫面像素，不會直接讀取 1968 網站的跨網域 iframe。
+    </div>
+    <div id="status" class="status">尚未取得影像。請先開啟 1968 即時影像，再擷取該瀏覽器分頁。</div>
+  </section>
+
+  <div class="layout">
+    <section class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <h2 style="margin:0">② 即時影像與背景相減結果</h2>
+        <div class="row">
+          <select id="viewMode" aria-label="顯示模式">
+            <option value="box">原圖＋偵測框</option>
+            <option value="diff">背景相減差值</option>
+            <option value="mask">二值遮罩（形態學後）</option>
+            <option value="overlay">原圖＋遮罩疊圖</option>
+          </select>
+          <button id="btnBg" class="warn" disabled>③ 拍攝背景</button>
+          <button id="btnSave" class="secondary" disabled>儲存畫面</button>
+        </div>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="view" width="640" height="360"></canvas>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="btnRoi" class="secondary" disabled>框選道路 ROI</button>
+        <button id="btnClearRoi" class="secondary" disabled>清除 ROI</button>
+        <button id="btnLine" class="secondary" disabled>設定車流計數線</button>
+        <button id="btnClearLine" class="secondary" disabled>清除計數線</button>
+        <button id="btnResetCount" class="secondary" disabled>重設通過數</button>
+      </div>
+      <p class="small">ROI：在畫面拖曳框出道路區域，排除護欄、天空、時間戳與其他固定背景。計數線：按下設定後，在畫面點擊兩次建立計數線；車輛中心穿越此線時才累計。</p>
+    </section>
+
+    <aside>
+      <section class="card">
+        <h2>③ 即時統計</h2>
+        <div class="stats">
+          <div class="stat"><span>移動物件候選數</span><strong id="candidateCount">0</strong><em>目前影格</em></div>
+          <div class="stat"><span>通過線累計</span><strong id="totalCount">0</strong><em>追蹤估計</em></div>
+          <div class="stat"><span>處理 FPS</span><strong id="fps">—</strong><em>演算法速度</em></div>
+          <div class="stat"><span>A → B</span><strong id="countAB">0</strong><em>方向一</em></div>
+          <div class="stat"><span>B → A</span><strong id="countBA">0</strong><em>方向二</em></div>
+          <div class="stat"><span>平均車流</span><strong id="flowRate">0</strong><em>輛／分鐘（估計）</em></div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button id="btnCsv" class="secondary" disabled>下載計數 CSV</button>
+          <span class="pill" id="roiState">ROI：全畫面</span>
+          <span class="pill" id="lineState">計數線：未設定</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>④ 影像處理參數</h2>
+        <label class="control"><span class="control-line">差值門檻 T <b id="tVal">28</b></span></label>
+        <input id="threshold" type="range" min="5" max="100" step="1" value="28">
+        <label class="control"><span class="control-line">形態學核心 k <b id="kVal">3</b></span></label>
+        <input id="kernel" type="range" min="1" max="9" step="2" value="3">
+        <label class="control"><span class="control-line">最小連通面積 <b id="areaVal">90</b> px</span></label>
+        <input id="minArea" type="range" min="10" max="3000" step="10" value="90">
+        <label class="control"><span class="control-line">最大連通面積 <b id="maxAreaVal">30000</b> px</span></label>
+        <input id="maxArea" type="range" min="1000" max="80000" step="500" value="30000">
+        <label class="control"><span class="control-line">處理寬度 <b id="widthVal">640</b> px</span></label>
+        <input id="procWidth" type="range" min="320" max="960" step="80" value="640">
+        <label class="checkrow"><input id="adaptive" type="checkbox"> 緩慢更新背景（適應光線變化）</label>
+        <label class="control"><span class="control-line">背景更新率 α <b id="alphaVal">0.005</b></span></label>
+        <input id="alpha" type="range" min="0.001" max="0.030" step="0.001" value="0.005">
+        <div class="note" style="margin-top:12px">先拍攝沒有車輛的背景。T 太低會把陰影、壓縮雜訊當成物件；T 太高則可能漏掉顏色接近路面的車輛。建議先觀察差值圖，再調整門檻與最小面積。</div>
+      </section>
+
+      <section class="card">
+        <h2>⑤ 各階段處理時間</h2>
+        <table>
+          <tr><td>灰階轉換</td><td id="timeGray">—</td></tr>
+          <tr><td>背景相減＋門檻</td><td id="timeDiff">—</td></tr>
+          <tr><td>形態學處理</td><td id="timeMorph">—</td></tr>
+          <tr><td>連通區域與追蹤</td><td id="timeCC">—</td></tr>
+          <tr><td><b>每影格合計</b></td><td id="timeTotal"><b>—</b></td></tr>
+        </table>
+      </section>
+    </aside>
+  </div>
+
+  <section class="card">
+    <h2>使用與判讀注意事項</h2>
+    <div class="small">
+      1. 背景相減得到的是「移動或亮度改變的區域」，不會自動保證每個連通區域就是一輛車。<br>
+      2. 兩輛車靠得太近可能合併成一個連通區域；同一輛車也可能因陰影或車窗反光被分割成多個區域。<br>
+      3. 「移動物件候選數」是當前影格的連通區域數；「通過線累計」則是簡易質心追蹤後的估計值，兩者意義不同。<br>
+      4. 固定攝影機、固定視角與穩定光線較適合背景相減；若畫面有鏡頭移動、雨滴、夜間車燈或大幅曝光變化，需重新拍背景或調整門檻。<br>
+      5. 這是教學與觀察用的傳統影像處理原型，尚未經人工標註資料驗證，不應視為正式交通流量統計。
+    </div>
+  </section>
+</main>
+
+<footer>影像來源：<a href="https://www.1968services.tw/cam/n3-n-172k+400" target="_blank" rel="noopener">高速公路資訊網－國道三號北上 172K+400</a>。本實驗頁面僅進行瀏覽器端影像分析，不代表官方交通統計。</footer>
+
+<video id="sourceVideo" playsinline muted autoplay style="display:none"></video>
+<canvas id="work" style="display:none"></canvas>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const video = $('sourceVideo');
+const canvas = $('view');
+const ctx = canvas.getContext('2d');
+const work = $('work');
+const wctx = work.getContext('2d', {willReadFrequently:true});
+
+let W=640,H=360,bg=null,running=false,paused=false,stream=null,raf=0;
+let roi=null,roiMode=false,lineMode=false,linePoints=[],countLine=null;
+let frameNo=0,tracks=[],nextTrackId=1;
+let countAB=0,countBA=0,sessionStart=0,history=[];
+let lastFrameImage=null;
+
+function setStatus(message,kind=''){
+  $('status').textContent=message;
+  $('status').className='status'+(kind?' '+kind:'');
+}
+function setButtons(active){
+  $('btnStop').disabled=!active;
+  $('btnPause').disabled=!active;
+  $('btnBg').disabled=!active;
+  $('btnSave').disabled=!active;
+  $('btnRoi').disabled=!active;
+  $('btnClearRoi').disabled=!active;
+  $('btnLine').disabled=!active;
+  $('btnClearLine').disabled=!active;
+  $('btnResetCount').disabled=!active;
+  $('btnCsv').disabled=!active;
+}
+function setDimensions(){
+  const vw=video.videoWidth||640,vh=video.videoHeight||360;
+  const targetW=Number($('procWidth').value);
+  W=targetW; H=Math.max(1,Math.round(targetW*vh/vw));
+  work.width=W;work.height=H;canvas.width=W;canvas.height=H;
+  bg=null;roi=null;countLine=null;linePoints=[];tracks=[];
+  $('roiState').textContent='ROI：全畫面';
+  $('lineState').textContent='計數線：未設定';
+  setStatus('影像尺寸已更新，請重新框選道路 ROI 並拍攝背景。','warn');
+}
+function stopSource(){
+  running=false;paused=false;
+  if(raf)cancelAnimationFrame(raf);
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  video.pause();video.srcObject=null;
+  setButtons(false);
+  $('btnPause').textContent='暫停';
+  setStatus('影像來源已停止。');
+}
+async function startScreenCapture(){
+  if(!navigator.mediaDevices?.getDisplayMedia){
+    setStatus('此瀏覽器不支援分頁擷取。請使用最新版 Chrome/Edge，或載入本機影片。','bad');return;
+  }
+  try{
+    stopSource();
+    stream=await navigator.mediaDevices.getDisplayMedia({
+      video:{frameRate:{ideal:15,max:30}},
+      audio:false
+    });
+    video.srcObject=stream;
+    await video.play();
+    await new Promise(resolve=>{
+      if(video.videoWidth)resolve();
+      else video.onloadedmetadata=resolve;
+    });
+    setDimensions();
+    running=true;paused=false;sessionStart=performance.now();frameNo=0;tracks=[];
+    setButtons(true);$('btnPause').textContent='暫停';
+    stream.getVideoTracks()[0].addEventListener('ended',stopSource);
+    setStatus('已取得分頁影像。請先框選道路 ROI，再按「拍攝背景」。','good');
+    loop();
+  }catch(e){
+    setStatus('無法擷取分頁：'+(e?.message||e)+'。請確認使用 HTTPS，並在分享視窗選擇 1968 影像分頁。','bad');
+  }
+}
+async function loadVideo(file){
+  if(!file)return;
+  stopSource();
+  const url=URL.createObjectURL(file);
+  video.srcObject=null;video.src=url;video.loop=true;video.muted=true;
+  try{
+    await video.play();
+    setDimensions();running=true;sessionStart=performance.now();frameNo=0;tracks=[];
+    setButtons(true);
+    setStatus('已載入本機影片。請框選道路 ROI，再拍攝背景。','good');
+    loop();
+  }catch(e){setStatus('影片載入失敗：'+(e?.message||e),'bad');}
+}
+function grabGray(){
+  wctx.drawImage(video,0,0,W,H);
+  const data=wctx.getImageData(0,0,W,H).data;
+  const gray=new Float32Array(W*H);
+  for(let i=0,j=0;j<gray.length;i+=4,j++){
+    gray[j]=0.299*data[i]+0.587*data[i+1]+0.114*data[i+2];
+  }
+  return gray;
+}
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function morph(src,k,erode){
+  if(k<=1)return src;
+  const r=(k-1)>>1,tmp=new Uint8Array(W*H),out=new Uint8Array(W*H);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    let v=erode?1:0;
+    for(let dx=-r;dx<=r;dx++){
+      const xx=x+dx,p=(xx<0||xx>=W)?0:src[y*W+xx];
+      if(erode&&!p){v=0;break;}if(!erode&&p){v=1;break;}
+    }
+    tmp[y*W+x]=v;
+  }
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    let v=erode?1:0;
+    for(let dy=-r;dy<=r;dy++){
+      const yy=y+dy,p=(yy<0||yy>=H)?0:tmp[yy*W+x];
+      if(erode&&!p){v=0;break;}if(!erode&&p){v=1;break;}
+    }
+    out[y*W+x]=v;
+  }
+  return out;
+}
+function components(mask,minArea,maxArea){
+  const labels=new Int32Array(W*H),stack=new Int32Array(W*H),blobs=[];
+  let id=0;
+  for(let s=0;s<W*H;s++){
+    if(!mask[s]||labels[s])continue;
+    id++;let top=0,area=0,x0=W,y0=H,x1=0,y1=0,sx=0,sy=0;
+    stack[top++]=s;labels[s]=id;
+    while(top){
+      const p=stack[--top],x=p%W,y=(p/W)|0;
+      area++;sx+=x;sy+=y;
+      if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+        if(!dx&&!dy)continue;
+        const nx=x+dx,ny=y+dy;
+        if(nx<0||ny<0||nx>=W||ny>=H)continue;
+        const q=ny*W+nx;
+        if(mask[q]&&!labels[q]){labels[q]=id;stack[top++]=q;}
+      }
+    }
+    if(area>=minArea&&area<=maxArea){
+      const bw=x1-x0+1,bh=y1-y0+1;
+      blobs.push({x:x0,y:y0,w:bw,h:bh,area,cx:sx/area,cy:sy/area,aspect:bw/Math.max(1,bh)});
+    }
+  }
+  return blobs;
+}
+function inROI(x,y){
+  if(!roi)return true;
+  return x>=roi.x&&y>=roi.y&&x<=roi.x+roi.w&&y<=roi.y+roi.h;
+}
+function signedLineDistance(p,line){
+  const dx=line.x2-line.x1,dy=line.y2-line.y1;
+  const len=Math.max(1,Math.hypot(dx,dy));
+  return ((p.x-line.x1)*dy-(p.y-line.y1)*dx)/len;
+}
+function updateTracks(blobs){
+  frameNo++;
+  const maxDist=Math.max(24,W*0.075);
+  const used=new Set();
+  const newTracks=[];
+  for(const b of blobs){
+    let best=null,bestD=maxDist;
+    for(const t of tracks){
+      if(used.has(t.id))continue;
+      const d=Math.hypot(b.cx-t.x,b.cy-t.y);
+      if(d<bestD){bestD=d;best=t;}
+    }
+    if(best){
+      used.add(best.id);
+      const prevD=best.lineD;
+      const currD=countLine?signedLineDistance({x:b.cx,y:b.cy},countLine):null;
+      if(countLine&&!best.counted&&prevD!==null&&currD!==null&&prevD*currD<0&&best.age>=1){
+        if(prevD<0&&currD>0)countAB++;else countBA++;
+        best.counted=true;
+        history.push({time:new Date().toISOString(),track:best.id,direction:prevD<0?'A_TO_B':'B_TO_A',x:b.cx.toFixed(1),y:b.cy.toFixed(1)});
+      }
+      best.x=b.cx;best.y=b.cy;best.last=frameNo;best.age++;best.lineD=currD;
+      best.blob=b;newTracks.push(best);
+    }else{
+      const t={id:nextTrackId++,x:b.cx,y:b.cy,last:frameNo,age:1,counted:false,
+        lineD:countLine?signedLineDistance({x:b.cx,y:b.cy},countLine):null,blob:b};
+      newTracks.push(t);
+    }
+  }
+  for(const t of tracks){
+    if(!used.has(t.id)&&frameNo-t.last<=5)newTracks.push(t);
+  }
+  tracks=newTracks;
+}
+function drawOverlay(blobs){
+  ctx.save();
+  if(roi){
+    ctx.strokeStyle='#ffd34e';ctx.lineWidth=Math.max(2,W/320);
+    ctx.setLineDash([8,5]);ctx.strokeRect(roi.x,roi.y,roi.w,roi.h);ctx.setLineDash([]);
+    ctx.fillStyle='#ffd34e';ctx.font=`${Math.max(12,W/48)}px sans-serif`;
+    ctx.fillText('ROAD ROI',roi.x+5,Math.max(15,roi.y-5));
+  }
+  if(countLine){
+    ctx.strokeStyle='#00e0ff';ctx.lineWidth=Math.max(2,W/320);
+    ctx.beginPath();ctx.moveTo(countLine.x1,countLine.y1);ctx.lineTo(countLine.x2,countLine.y2);ctx.stroke();
+    ctx.fillStyle='#00e0ff';ctx.font=`${Math.max(12,W/48)}px sans-serif`;
+    ctx.fillText('COUNT LINE',Math.min(W-110,countLine.x1+5),Math.max(15,countLine.y1-8));
+  }
+  if(lineMode&&linePoints.length===1){
+    ctx.fillStyle='#00e0ff';ctx.beginPath();ctx.arc(linePoints[0].x,linePoints[0].y,6,0,Math.PI*2);ctx.fill();
+  }
+  if(roiMode&&drag){
+    ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.setLineDash([6,4]);
+    ctx.strokeRect(drag.x,drag.y,drag.w,drag.h);ctx.setLineDash([]);
+  }
+  blobs.forEach((b,i)=>{
+    ctx.strokeStyle='#42f58d';ctx.lineWidth=Math.max(2,W/360);
+    ctx.strokeRect(b.x,b.y,b.w,b.h);
+    ctx.fillStyle='#42f58d';ctx.font=`bold ${Math.max(12,W/48)}px sans-serif`;
+    ctx.fillText('OBJ '+(i+1),b.x,Math.max(14,b.y-4));
+  });
+  ctx.restore();
+}
+function render(mode,diff,mask,blobs){
+  if(mode==='box'||mode==='overlay'){
+    ctx.drawImage(work,0,0);
+    if(mode==='overlay'&&mask){
+      const im=ctx.createImageData(W,H);
+      for(let i=0,j=0;j<mask.length;i+=4,j++){
+        if(mask[j]){im.data[i]=255;im.data[i+1]=60;im.data[i+2]=30;im.data[i+3]=105;}
+      }
+      ctx.putImageData(im,0,0);
+    }
+  }else{
+    const im=ctx.createImageData(W,H);
+    for(let i=0,j=0;j<W*H;i+=4,j++){
+      const v=mode==='diff'?Math.min(255,diff[j]*3):(mask[j]?255:0);
+      im.data[i]=im.data[i+1]=im.data[i+2]=v;im.data[i+3]=255;
+    }
+    ctx.putImageData(im,0,0);
+  }
+  drawOverlay(blobs);
+}
+let drag=null;
+function loop(){
+  if(!running)return;
+  if(!video.videoWidth){raf=requestAnimationFrame(loop);return;}
+  if(paused){
+    raf=requestAnimationFrame(loop);return;
+  }
+  if(!bg){
+    wctx.drawImage(video,0,0,W,H);ctx.drawImage(work,0,0);
+    raf=requestAnimationFrame(loop);return;
+  }
+  const total0=performance.now();
+  const cur=grabGray();const t1=performance.now();
+  const T=Number($('threshold').value),k=Number($('kernel').value);
+  const minA=Number($('minArea').value),maxA=Math.max(minA,Number($('maxArea').value));
+  const diff=new Uint8ClampedArray(W*H),raw=new Uint8Array(W*H);
+  for(let i=0;i<raw.length;i++){
+    const x=i%W,y=(i/W)|0;
+    const d=Math.abs(cur[i]-bg[i]);diff[i]=d;
+    if(d>T&&inROI(x,y))raw[i]=1;
+    if($('adaptive').checked&&d<=T){
+      const a=Number($('alpha').value);
+      bg[i]=(1-a)*bg[i]+a*cur[i];
+    }
+  }
+  const t2=performance.now();
+  const mask=k>1?morph(morph(raw,k,true),k,false):raw;
+  const t3=performance.now();
+  const blobs=components(mask,minA,maxA);
+  updateTracks(blobs);
+  const t4=performance.now();
+  render($('viewMode').value,diff,mask,blobs);
+  const total=t4-total0;
+  $('candidateCount').textContent=blobs.length;
+  $('totalCount').textContent=countAB+countBA;
+  $('countAB').textContent=countAB;$('countBA').textContent=countBA;
+  $('fps').textContent=total>0?(1000/total).toFixed(1):'—';
+  const elapsed=Math.max(1,(performance.now()-sessionStart)/60000);
+  $('flowRate').textContent=((countAB+countBA)/elapsed).toFixed(1);
+  $('timeGray').textContent=(t1-total0).toFixed(1)+' ms';
+  $('timeDiff').textContent=(t2-t1).toFixed(1)+' ms';
+  $('timeMorph').textContent=(t3-t2).toFixed(1)+' ms';
+  $('timeCC').textContent=(t4-t3).toFixed(1)+' ms';
+  $('timeTotal').innerHTML='<b>'+total.toFixed(1)+' ms</b>';
+  lastFrameImage=canvas;
+  if(frameNo%15===0){
+    history.push({time:new Date().toISOString(),candidate_count:blobs.length,passed_ab:countAB,passed_ba:countBA});
+  }
+  raf=requestAnimationFrame(loop);
+}
+async function captureBackground(){
+  if(!running||!video.videoWidth)return;
+  setStatus('正在建立背景模型：連續取樣 8 張影像，請確認道路 ROI 內暫時沒有車輛…','warn');
+  const sum=new Float32Array(W*H);
+  for(let n=0;n<8;n++){
+    const g=grabGray();
+    for(let i=0;i<sum.length;i++)sum[i]+=g[i]/8;
+    await new Promise(r=>setTimeout(r,100));
+  }
+  bg=sum;tracks=[];frameNo=0;sessionStart=performance.now();
+  countAB=0;countBA=0;nextTrackId=1;history=[];
+  setStatus('背景模型已建立。現在可觀察相減差值與二值遮罩；如背景殘影太多，請在車流較少時重拍。','good');
+}
+function canvasPoint(e){
+  const r=canvas.getBoundingClientRect();
+  return {x:clamp((e.clientX-r.left)*W/r.width,0,W-1),y:clamp((e.clientY-r.top)*H/r.height,0,H-1)};
+}
+canvas.addEventListener('pointerdown',e=>{
+  if(roiMode){
+    const p=canvasPoint(e);drag={x:p.x,y:p.y,w:0,h:0};canvas.setPointerCapture(e.pointerId);
+  }else if(lineMode){
+    const p=canvasPoint(e);linePoints.push(p);
+    if(linePoints.length===2){
+      countLine={x1:linePoints[0].x,y1:linePoints[0].y,x2:linePoints[1].x,y2:linePoints[1].y};
+      linePoints=[];lineMode=false;$('btnLine').textContent='設定車流計數線';
+      $('lineState').textContent='計數線：已設定';tracks=[];
+      setStatus('計數線已設定。車輛質心穿越此線時會累計方向數。','good');
+    }
+  }
+});
+canvas.addEventListener('pointermove',e=>{
+  if(roiMode&&drag){
+    const p=canvasPoint(e);drag.w=p.x-drag.x;drag.h=p.y-drag.y;
+  }
+});
+canvas.addEventListener('pointerup',()=>{
+  if(roiMode&&drag){
+    const x=Math.min(drag.x,drag.x+drag.w),y=Math.min(drag.y,drag.y+drag.h);
+    const w=Math.abs(drag.w),h=Math.abs(drag.h);
+    if(w>12&&h>12){
+      roi={x,y,w,h};$('roiState').textContent='ROI：已設定';
+      bg=null;setStatus('道路 ROI 已設定。請重新拍攝背景，背景模型會依目前 ROI 重新建立。','warn');
+    }
+    drag=null;roiMode=false;$('btnRoi').textContent='框選道路 ROI';
+  }
+});
+$('btnRoi').onclick=()=>{roiMode=!roiMode;lineMode=false;drag=null;$('btnRoi').textContent=roiMode?'拖曳框選中…':'框選道路 ROI';setStatus(roiMode?'請在影像上按住滑鼠／手指，拖曳框出道路區域。':'ROI 選取已取消。');};
+$('btnClearRoi').onclick=()=>{roi=null;bg=null;$('roiState').textContent='ROI：全畫面';setStatus('已清除 ROI，請重新拍攝背景。','warn');};
+$('btnLine').onclick=()=>{lineMode=true;roiMode=false;linePoints=[];$('btnLine').textContent='請點擊兩個端點…';setStatus('請在畫面上依序點擊計數線的第一點與第二點。');};
+$('btnClearLine').onclick=()=>{countLine=null;linePoints=[];tracks=[];$('lineState').textContent='計數線：未設定';setStatus('已清除計數線。');};
+$('btnResetCount').onclick=()=>{countAB=0;countBA=0;tracks=[];history=[];sessionStart=performance.now();$('totalCount').textContent='0';$('countAB').textContent='0';$('countBA').textContent='0';$('flowRate').textContent='0';setStatus('通過線計數已重設。');};
+$('btnCapture').onclick=startScreenCapture;
+$('btnStop').onclick=stopSource;
+$('btnPause').onclick=()=>{paused=!paused;$('btnPause').textContent=paused?'繼續':'暫停';setStatus(paused?'處理已暫停。':'處理已繼續。');};
+$('btnBg').onclick=captureBackground;
+$('videoFile').onchange=e=>loadVideo(e.target.files[0]);
+$('btnSave').onclick=()=>{
+  const a=document.createElement('a');a.download='國道三號_背景相減結果.png';a.href=canvas.toDataURL('image/png');a.click();
+};
+$('btnCsv').onclick=()=>{
+  const rows=[['time','track_or_event','direction_or_candidates','x','y','count_AB','count_BA']];
+  history.forEach(h=>rows.push([h.time,h.track??'',h.direction??h.candidate_count??'',h.x??'',h.y??'',h.passed_ab??'',h.passed_ba??'']));
+  const csv='\uFEFF'+rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='traffic_count_log.csv';a.click();URL.revokeObjectURL(url);
+};
+$('viewMode').onchange=()=>{};
+[['threshold','tVal'],['kernel','kVal'],['minArea','areaVal'],['maxArea','maxAreaVal'],['procWidth','widthVal'],['alpha','alphaVal']].forEach(([a,b])=>{
+  $(a).oninput=()=>{$(b).textContent=$(a).value;if(a==='procWidth'&&running){setDimensions();}};
+});
+window.addEventListener('pagehide',stopSource);
+})();
+</script>
+</body>
+</html>
