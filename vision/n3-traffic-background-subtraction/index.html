@@ -95,6 +95,7 @@ footer{max-width:1240px;margin:auto;padding:0 16px 30px;color:var(--muted);font-
         <div class="row">
           <select id="viewMode" aria-label="顯示模式">
             <option value="box">原圖＋偵測框</option>
+            <option value="bg">背景模型</option>
             <option value="diff">背景相減差值</option>
             <option value="mask">二值遮罩（形態學後）</option>
             <option value="overlay">原圖＋遮罩疊圖</option>
@@ -414,7 +415,10 @@ function render(mode,diff,mask,blobs){
   }else{
     const im=ctx.createImageData(W,H);
     for(let i=0,j=0;j<W*H;i+=4,j++){
-      const v=mode==='diff'?Math.min(255,diff[j]*3):(mask[j]?255:0);
+      let v=0;
+      if(mode==='bg')v=bg?clamp(Math.round(bg[j]),0,255):0;
+      else if(mode==='diff')v=Math.min(255,diff[j]*3);
+      else v=mask[j]?255:0;
       im.data[i]=im.data[i+1]=im.data[i+2]=v;im.data[i+3]=255;
     }
     ctx.putImageData(im,0,0);
@@ -473,16 +477,28 @@ function loop(){
 }
 async function captureBackground(){
   if(!running||!video.videoWidth)return;
-  setStatus('正在建立背景模型：連續取樣 8 張影像，請確認道路 ROI 內暫時沒有車輛…','warn');
-  const sum=new Float32Array(W*H);
-  for(let n=0;n<8;n++){
-    const g=grabGray();
-    for(let i=0;i<sum.length;i++)sum[i]+=g[i]/8;
+  setStatus('正在建立背景模型：連續取樣 9 張影像並取時間中值，請稍候…','warn');
+  // 以 9 張影像的時間中值建立背景，降低移動車輛在背景中的殘影。
+  const samples=[];
+  for(let n=0;n<9;n++){
+    samples.push(grabGray());
     await new Promise(r=>setTimeout(r,100));
   }
-  bg=sum;tracks=[];frameNo=0;sessionStart=performance.now();
+  const values=new Float32Array(9);
+  const model=new Float32Array(W*H);
+  for(let i=0;i<model.length;i++){
+    for(let j=0;j<9;j++)values[j]=samples[j][i];
+    // 9 個樣本做 insertion sort，取第 5 個（中值）。
+    for(let j=1;j<9;j++){
+      const key=values[j];let k=j-1;
+      while(k>=0&&values[k]>key){values[k+1]=values[k];k--;}
+      values[k+1]=key;
+    }
+    model[i]=values[4];
+  }
+  bg=model;tracks=[];frameNo=0;sessionStart=performance.now();
   countAB=0;countBA=0;nextTrackId=1;history=[];
-  setStatus('背景模型已建立。現在可觀察相減差值與二值遮罩；如背景殘影太多，請在車流較少時重拍。','good');
+  setStatus('背景模型已建立（9張時間中值）。現在可切換觀察背景、差值與二值遮罩；若道路持續壅塞，建議稍後重拍以降低車輛殘影。','good');
 }
 function canvasPoint(e){
   const r=canvas.getBoundingClientRect();
