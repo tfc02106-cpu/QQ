@@ -61,12 +61,11 @@ main{max-width:1120px;margin:auto;padding:0 24px 64px}.latest{margin-bottom:36px
 <script>
 const TOPICS = [
   { id:'measurement-2026-midterm', icon:'📚', name:'量測2026期中考題庫', desc:'第1–3週 C版題庫、答案與 VIM 2.9–2.29 名詞對照，提供 Word 原檔下載', c1:'#087d73', c2:'#2563eb' },
-  { id:'health', icon:'🛤️', name:'健康監測', desc:'導軌狀態評估、角度誤差模型驗證與雙干涉儀配對掃描警示', c1:'#0e6e8c', c2:'#1e7a3c' },
   { id:'dynamics', icon:'📘', name:'動力學課程', desc:'課堂講義、期中考複習與教學動畫：更新 1027 習題與例題總複習、角度微分修正版，含科氏項動畫，提供 Google Drive 連結', c1:'#087d73', c2:'#2563eb' },
   { id:'game', icon:'🎮', name:'闖關小遊戲', desc:'邊玩邊練路徑規劃、方向判斷與反應速度', c1:'#ec4899', c2:'#f97316' },
   { id:'vision', icon:'🖼️', name:'影像處理與機器視覺', desc:'影像基礎運算、幾何校正與視覺實驗', c1:'#2563eb', c2:'#06b6d4' },
   { id:'ai', icon:'🤖', name:'AI 檢測與 AOI', desc:'自動光學檢測、辨識模型與訓練資料生成', c1:'#7c3aed', c2:'#2563eb' },
-  { id:'d17', icon:'📐', name:'D17 長尺校正', desc:'滑座俯仰、刻線對位與軌道補償', c1:'#087771', c2:'#20929b' },
+  { id:'d17', icon:'📐', name:'D17 長尺校正', desc:'滑座俯仰、刻線對位、軌道補償與導軌健康監測', c1:'#087771', c2:'#20929b' },
   { id:'metrology', icon:'📏', name:'精密量測與校正', desc:'量測不確定度、角度誤差與非破壞檢測', c1:'#0891b2', c2:'#22c55e' },
   { id:'fluid', icon:'🌊', name:'流體力學', desc:'從變化球連結旋轉、流場、受力公式與球路', c1:'#0284c7', c2:'#14b8a6' },
   { id:'robot', icon:'🦾', name:'機器人與智慧自動化', desc:'機械手臂模擬、控制器調參與工業通訊', c1:'#f97316', c2:'#ef4444' },
@@ -92,7 +91,7 @@ const COURSES = [
   ["measurement-2026-midterm", "QQ/measurement-2026-midterm/files/%E9%A1%8C%E5%BA%AB_%E7%AC%AC1-3%E9%80%B1_C%E7%89%88%28%E7%AD%94%E6%A1%88%29.docx", "📄", "答案｜第1–3週 C版", "第1–3週 C版題庫答案，Word 原始檔。", "Word 下載", "2026-10-19"],
   ["measurement-2026-midterm", "QQ/measurement-2026-midterm/files/VIM%E5%90%8D%E8%A9%9E%E5%B0%8D%E7%85%A7_2.9-2.29.docx", "📄", "VIM 名詞對照｜2.9–2.29", "VIM 2.9–2.29 名詞對照資料，Word 原始檔。", "Word 下載", "2026-10-19"],
 
-  ['health','QQ/health-monitoring/rail-health-monitor.html','🛤️','導軌健康監測｜Rail Health Monitor','整合角度誤差模型驗證、導軌狀態評估與配對掃描警示，支援資料輸入、圖表檢視及報告匯出。','健康監測工具','2026-10-18'],
+  ['d17','QQ/health-monitoring/rail-health-monitor.html','🛤️','導軌健康監測｜Rail Health Monitor','整合角度誤差模型驗證、導軌狀態評估與配對掃描警示，支援資料輸入、圖表檢視及報告匯出。','健康監測工具','2026-10-18'],
   ['dynamics','QQ/dynamics/#lecture-1013-2-4','📘','1013 上課講義｜2-4 曲線運動','第 2 章・55 張投影片。下載 PowerPoint 原檔（5.0 MB）。','PPT 下載','2026-10-13'],
   ['dynamics','QQ/dynamics/#lecture-1013-2-5','📘','1013 上課講義｜2-5 至例題 2-19｜引導詳解版','第 2 章・149 張投影片。下載 PowerPoint 原檔（9.0 MB）。','PPT 下載','2026-10-13'],
   ['dynamics','QQ/dynamics/#curvilinear','📘','動力學課程｜2-4 曲線運動','第 2 章第二部分：2-4 曲線運動，共 56 張投影片。下載 PowerPoint 原檔（5.0 MB）。','PPT 下載','2026-10-06'],
